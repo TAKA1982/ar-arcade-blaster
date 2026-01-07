@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>AR Arcade Blaster</title>
+
+  <!-- Fixed versions -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1646424915/hands.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+  <script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
+
+  <style>
+    :root{
+      --bg:#000;
+      --fg:rgba(255,255,255,0.95);
+      --muted:rgba(255,255,255,0.70);
+      --card:rgba(10,10,10,0.62);
+      --border:rgba(255,255,255,0.10);
+      --shadow:0 14px 40px rgba(0,0,0,0.55);
+      --accent:#00ff88;
+      --danger:#ff4444;
+      --warn:#ffcc33;
+      --safe-top: env(safe-area-inset-top, 0px);
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+      --safe-left: env(safe-area-inset-left, 0px);
+      --safe-right: env(safe-area-inset-right, 0px);
+    }
+    html,body{
+      margin:0; padding:0;
+      height:100%;
+      background:var(--bg);
+      color:var(--fg);
+      overflow:hidden;
+      touch-action:none;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+    canvas{display:block;}
+    #video-container{
+      position:fixed;
+      width:1px;height:1px;
+      opacity:0;
+      pointer-events:none;
+      transform:scaleX(-1);
+    }
+    #ui{
+      position:fixed; inset:0;
+      pointer-events:none;
+      text-shadow:0 2px 10px rgba(0,0,0,0.65);
+    }
+    #topbar{
+      position:fixed;
+      top:calc(10px + var(--safe-top));
+      left:calc(10px + var(--safe-left));
+      right:calc(10px + var(--safe-right));
+      display:flex;
+      gap:10px;
+      align-items:center;
+      justify-content:space-between;
+    }
+    .pill{
+      background: rgba(0,0,0,0.35);
+      border:1px solid rgba(255,255,255,0.10);
+      box-shadow:var(--shadow);
+      backdrop-filter: blur(10px);
+      border-radius: 14px;
+      padding: 10px 12px;
+      pointer-events:none;
+      display:flex;
+      align-items:center;
+      gap:10px;
+      line-height:1;
+      white-space:nowrap;
+    }
+    .pill .k{font-size:12px;color:var(--muted);font-weight:800;letter-spacing:0.2px;}
+    .pill .v{font-size:14px;font-weight:900;letter-spacing:0.2px;}
+    .dot{
+      width:8px;height:8px;border-radius:50%;
+      background:#999;
+      box-shadow: 0 0 0 3px rgba(255,255,255,0.08);
+    }
+    .dot.ok{background:var(--accent);}
+    .dot.bad{background:var(--danger);}
+    .dot.mid{background:var(--warn);}
+
+    #bottombar{
+      position:fixed;
+      left:calc(10px + var(--safe-left));
+      right:calc(10px + var(--safe-right));
+      bottom:calc(10px + var(--safe-bottom));
+      display:flex;
+      justify-content:center;
+      pointer-events:none;
+    }
+    #hint{
+      max-width:min(640px, calc(100vw - 20px - var(--safe-left) - var(--safe-right)));
+      background: rgba(0,0,0,0.38);
+      border:1px solid rgba(255,255,255,0.10);
+      box-shadow:var(--shadow);
+      backdrop-filter: blur(10px);
+      border-radius: 16px;
+      padding: 10px 12px;
+      font-size: 13px;
+      line-height: 1.35;
+      color: var(--fg);
+    }
+    #hint .muted{color:var(--muted);font-size:12px;margin-top:4px;}
+
+    #overlay{
+      position:fixed; inset:0;
+      z-index:999;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding: calc(16px + var(--safe-top)) calc(16px + var(--safe-right)) calc(16px + var(--safe-bottom)) calc(16px + var(--safe-left));
+      background:
+        radial-gradient(1200px 900px at 50% 30%, rgba(0,255,136,0.11), rgba(0,0,0,0.92));
+    }
+    #card{
+      width:min(720px, 100%);
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(14px);
+      padding: 14px;
+      pointer-events:auto;
+    }
+    #title{
+      margin:0 0 6px 0;
+      font-size: 18px;
+      font-weight: 1000;
+      letter-spacing: 0.3px;
+    }
+    #desc{
+      margin:0 0 10px 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+    .row{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      margin: 10px 0;
+    }
+    .btn{
+      appearance:none;
+      border:0;
+      border-radius: 14px;
+      padding: 12px 14px;
+      font-weight: 1000;
+      font-size: 14px;
+      letter-spacing: 0.2px;
+      cursor:pointer;
+      -webkit-tap-highlight-color: transparent;
+      min-width: 160px;
+      flex:1;
+    }
+    .btn.primary{
+      background: var(--accent);
+      color:#02140c;
+      box-shadow: 0 12px 30px rgba(0,255,136,0.18);
+    }
+    .btn.secondary{
+      background: rgba(255,255,255,0.10);
+      color: var(--fg);
+      border: 1px solid rgba(255,255,255,0.12);
+      box-shadow:none;
+    }
+    .grid{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:10px;
+      margin-top:10px;
+    }
+    .panel{
+      background: rgba(0,0,0,0.30);
+      border:1px solid rgba(255,255,255,0.10);
+      border-radius: 16px;
+      padding: 10px;
+    }
+    .panel h3{
+      margin:0 0 6px 0;
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 1000;
+      letter-spacing: 0.3px;
+      text-transform: uppercase;
+    }
+    .opt{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      padding: 8px 0;
+      border-top: 1px solid rgba(255,255,255,0.06);
+    }
+    .opt:first-of-type{border-top:0;}
+    .opt label{font-size:13px;color:var(--fg);font-weight:800;}
+    select, input[type="range"]{
+      pointer-events:auto;
+      width: 180px;
+      max-width: 45vw;
+    }
+    #error{
+      display:none;
+      margin-top:10px;
+      padding: 10px 12px;
+      border-radius: 14px;
+      background: rgba(255,68,68,0.10);
+      border: 1px solid rgba(255,68,68,0.25);
+      color: var(--fg);
+      font-size: 13px;
+      line-height: 1.45;
+      white-space: pre-wrap;
+    }
+
+    .vfx{
+      position:absolute;
+      transform: translate(-50%, -50%);
+      font-weight: 1000;
+      pointer-events:none;
+      will-change: transform, opacity;
+      animation: floatUp 0.8s ease-out forwards;
+      text-shadow: 0 10px 25px rgba(0,0,0,0.7);
+    }
+    @keyframes floatUp{
+      0% { opacity: 1; transform: translate(-50%, -50%) translateY(0) scale(1); }
+      100% { opacity: 0; transform: translate(-50%, -50%) translateY(-90px) scale(1.05); }
+    }
+
+    #tapBadge{
+      position:fixed;
+      right: calc(10px + var(--safe-right));
+      bottom: calc(84px + var(--safe-bottom));
+      background: rgba(0,0,0,0.32);
+      border:1px solid rgba(255,255,255,0.10);
+      border-radius: 14px;
+      padding: 8px 10px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(10px);
+      color: var(--muted);
+      font-size: 12px;
+      pointer-events:none;
+      opacity: 0;
+      transform: translateY(8px);
+      transition: opacity 220ms ease, transform 220ms ease;
+    }
+    #tapBadge.show{opacity:1; transform: translateY(0);}
+
+    @media (max-width: 560px){
+      .grid{grid-template-columns: 1fr;}
+    }
+  </style>
+</head>
+<body>
+
+  <div id="overlay">
+    <div id="card">
+      <h1 id="title">AR Arcade Blaster</h1>
+      <p id="desc">
+        手ジェスチャーでもタップでも遊べる、端末に合わせて自動最適化するアーケードシューター。
+        Androidスマホ/タブレットはChrome推奨。httpsで開いてカメラ許可が必要です。
+      </p>
+
+      <div class="grid">
+        <div class="panel">
+          <h3>Game</h3>
+          <div class="opt">
+            <label for="mode">モード</label>
+            <select id="mode">
+              <option value="timed">60秒チャレンジ</option>
+              <option value="endless">エンドレス</option>
+              <option value="relax">リラックス</option>
+            </select>
+          </div>
+          <div class="opt">
+            <label for="difficulty">難易度</label>
+            <select id="difficulty">
+              <option value="auto" selected>自動（おすすめ）</option>
+              <option value="easy">EASY</option>
+              <option value="normal">NORMAL</option>
+              <option value="hard">HARD</option>
+            </select>
+          </div>
+          <div class="opt">
+            <label for="handed">利き手</label>
+            <select id="handed">
+              <option value="auto" selected>自動</option>
+              <option value="right">右手想定</option>
+              <option value="left">左手想定</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="panel">
+          <h3>Controls</h3>
+          <div class="opt">
+            <label for="tapshoot">タップ発射</label>
+            <select id="tapshoot">
+              <option value="on" selected>ON</option>
+              <option value="off">OFF</option>
+            </select>
+          </div>
+          <div class="opt">
+            <label for="assist">エイム補助</label>
+            <input id="assist" type="range" min="0" max="100" value="55" />
+          </div>
+          <div class="opt">
+            <label for="fx">演出</label>
+            <select id="fx">
+              <option value="full" selected>FULL</option>
+              <option value="lite">LITE</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="row">
+        <button class="btn primary" id="startBtn">開始（カメラ許可）</button>
+        <button class="btn secondary" id="fsBtn">フルスクリーン</button>
+        <button class="btn secondary" id="howBtn">遊び方</button>
+      </div>
+
+      <div id="error"></div>
+    </div>
+  </div>
+
+  <div id="video-container">
+    <video id="video" playsinline muted></video>
+  </div>
+
+  <div id="ui">
+    <div id="topbar">
+      <div class="pill">
+        <div class="k">SCORE</div><div class="v" id="score">0</div>
+        <div class="k">MULTI</div><div class="v" id="multi">x1</div>
+      </div>
+
+      <div class="pill">
+        <div class="dot bad" id="dot"></div>
+        <div class="k" id="status">開始を押してください</div>
+        <div class="k">FPS</div><div class="v" id="fps">--</div>
+        <div class="k" id="timerKey">TIME</div><div class="v" id="timer">--</div>
+      </div>
+    </div>
+
+    <div id="bottombar">
+      <div id="hint">
+        手をカメラに映すと照準が動きます。親指を曲げると発射。
+        <div class="muted">反応が不安定なら画面タップでも発射できます。横向き推奨。</div>
+      </div>
+    </div>
+
+    <div id="tapBadge">タップで発射</div>
+  </div>
+
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+
+  // ---------- Settings ----------
+  const FIXED_MP_VERSION = "0.4.1646424915";
+
+  // Default tuning (auto will adjust)
+  let cfg = {
+    mode: "timed",
+    difficulty: "auto",
+    handed: "auto",
+    tapShoot: true,
+    assist: 0.55,        // 0..1
+    fx: "full",
+
+    // performance
+    pixelRatioCap: 1.6,
+    aiEveryNFrames: 2,
+
+    // game params (will be overwritten by difficulty/auto)
+    maxTargets: 6,
+    spawnRate: 0.95,     // per second
+    targetSpeed: 1.0,
+    shotCooldownMs: 190,
+    snapRadius: 1.6,
+    hitRadius: 0.75,
+
+    // scoring
+    baseScore: 100,
+  };
+
+  // ---------- State ----------
+  let scene, camera, renderer;
+  let crosshair, laser;
+  let targets = [];
+  let particles = [];
+  let clock = new THREE.Clock();
+
+  let hands = null;
+  let cam = null;
+  let frameCount = 0;
+
+  let audioCtx = null;
+
+  let running = false;
+  let loaded = false;
+
+  let score = 0;
+  let multi = 1;
+  let combo = 0;
+  let lastHitAt = 0;
+
+  let lastShootAt = 0;
+  let thumbWasUp = true;
+  let lastAimPos = null;
+
+  let modeEndAt = 0;
+
+  // fps tracking
+  let fps = 0;
+  let fpsSmoothing = 0.12;
+  let lastFpsUpdate = performance.now();
+
+  // ---------- UI helpers ----------
+  function setStatus(kind, text){
+    $("status").textContent = text;
+    const dot = $("dot");
+    dot.classList.remove("ok","bad","mid");
+    dot.classList.add(kind);
+  }
+
+  function showError(msg){
+    const e = $("error");
+    e.style.display = "block";
+    e.textContent = msg;
+  }
+  function clearError(){
+    const e = $("error");
+    e.style.display = "none";
+    e.textContent = "";
+  }
+
+  function vfxText(text, color, x, y, size){
+    if (cfg.fx === "lite") return;
+    const d = document.createElement("div");
+    d.className = "vfx";
+    d.style.left = x + "px";
+    d.style.top = y + "px";
+    d.style.color = color;
+    d.style.fontSize = (size || 36) + "px";
+    d.textContent = text;
+    $("ui").appendChild(d);
+    setTimeout(() => d.remove(), 800);
+  }
+
+  function badgeTap(){
+    if (!cfg.tapShoot) return;
+    const b = $("tapBadge");
+    b.classList.add("show");
+    setTimeout(() => b.classList.remove("show"), 1500);
+  }
+
+  function vibrate(p){
+    try{ if(navigator.vibrate) navigator.vibrate(p); }catch(_){}
+  }
+
+  // ---------- Audio ----------
+  function ensureAudio(){
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  async function resumeAudio(){
+    ensureAudio();
+    if (audioCtx && audioCtx.state === "suspended"){
+      try{ await audioCtx.resume(); }catch(_){}
+    }
+  }
+  function beep(freq, type, dur, gainValue){
+    if (!audioCtx || audioCtx.state !== "running") return;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = type || "square";
+    osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(10, audioCtx.currentTime + dur);
+    gain.gain.setValueAtTime(gainValue ?? 0.12, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + dur);
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start();
+    osc.stop(audioCtx.currentTime + dur);
+  }
+
+  // ---------- Performance auto-tuning ----------
+  function applyDifficulty(){
+    const d = cfg.difficulty;
+    if (d === "easy"){
+      cfg.maxTargets = 5;
+      cfg.spawnRate = 0.75;
+      cfg.targetSpeed = 0.85;
+      cfg.shotCooldownMs = 160;
+      cfg.hitRadius = 0.82;
+      cfg.snapRadius = 1.8;
+    } else if (d === "normal"){
+      cfg.maxTargets = 7;
+      cfg.spawnRate = 1.00;
+      cfg.targetSpeed = 1.00;
+      cfg.shotCooldownMs = 190;
+      cfg.hitRadius = 0.75;
+      cfg.snapRadius = 1.6;
+    } else if (d === "hard"){
+      cfg.maxTargets = 9;
+      cfg.spawnRate = 1.25;
+      cfg.targetSpeed = 1.20;
+      cfg.shotCooldownMs = 210;
+      cfg.hitRadius = 0.68;
+      cfg.snapRadius = 1.45;
+    }
+  }
+
+  function autoTuneFromFps(){
+    // Called periodically while running
+    // Keep it stable: only small adjustments.
+    if (cfg.difficulty !== "auto") return;
+
+    // Target fps ~ 50+ on Android, but accept 35 on low-end.
+    if (fps < 32){
+      cfg.aiEveryNFrames = Math.min(4, cfg.aiEveryNFrames + 1);
+      cfg.pixelRatioCap = Math.max(1.0, cfg.pixelRatioCap - 0.15);
+      cfg.maxTargets = Math.max(4, cfg.maxTargets - 1);
+      cfg.spawnRate = Math.max(0.65, cfg.spawnRate - 0.08);
+    } else if (fps > 52){
+      cfg.aiEveryNFrames = Math.max(1, cfg.aiEveryNFrames - 1);
+      cfg.pixelRatioCap = Math.min(1.8, cfg.pixelRatioCap + 0.10);
+      cfg.maxTargets = Math.min(10, cfg.maxTargets + 1);
+      cfg.spawnRate = Math.min(1.35, cfg.spawnRate + 0.06);
+    } else {
+      // keep
+    }
+    // renderer settings update
+    if (renderer){
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, cfg.pixelRatioCap));
+    }
+  }
+
+  // ---------- Three init ----------
+  function initThree(){
+    scene = new THREE.Scene();
+    camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+
+    renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: "high-performance" });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, cfg.pixelRatioCap));
+    document.body.appendChild(renderer.domElement);
+
+    const light = new THREE.HemisphereLight(0xffffff, 0x444444, 1.5);
+    scene.add(light);
+
+    // Laser line
+    const laserGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0,0,0), new THREE.Vector3(0,0,-10)]);
+    const laserMat = new THREE.LineBasicMaterial({ color: 0x00ff88, transparent: true, opacity: 0.55 });
+    laser = new THREE.Line(laserGeo, laserMat);
+    scene.add(laser);
+
+    // Crosshair
+    const crossGeo = new THREE.RingGeometry(0.055, 0.08, 40);
+    const crossMat = new THREE.MeshBasicMaterial({ color: 0x00ff88, side: THREE.DoubleSide });
+    crosshair = new THREE.Mesh(crossGeo, crossMat);
+    scene.add(crosshair);
+
+    camera.position.z = 0;
+  }
+
+  function onResize(){
+    if (!camera || !renderer) return;
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, cfg.pixelRatioCap));
+  }
+  window.addEventListener("resize", onResize);
+  window.addEventListener("orientationchange", () => setTimeout(onResize, 250));
+
+  // ---------- Targets ----------
+  function makeTarget(type){
+    // type: "score" | "danger" | "bonus"
+    // Score: +, Danger: -, Bonus: time or multi
+    let geo, mat, mesh;
+
+    if (type === "score"){
+      geo = new THREE.IcosahedronGeometry(0.40, 0);
+      mat = new THREE.MeshPhongMaterial({ color: 0x33aaff, emissive: 0x081020, shininess: 80 });
+    } else if (type === "danger"){
+      geo = new THREE.TorusKnotGeometry(0.28, 0.10, 80, 10);
+      mat = new THREE.MeshPhongMaterial({ color: 0xff4444, emissive: 0x240000, shininess: 40 });
+    } else {
+      geo = new THREE.OctahedronGeometry(0.45, 0);
+      mat = new THREE.MeshPhongMaterial({ color: 0xffcc33, emissive: 0x2a2000, shininess: 100 });
+    }
+
+    mesh = new THREE.Mesh(geo, mat);
+
+    // spawn on a ring around center
+    const angle = Math.random() * Math.PI * 2;
+    const dist = 10.5 + Math.random() * 2.0;
+    mesh.position.set(Math.cos(angle)*dist, Math.sin(angle)*dist, -16 - Math.random()*8);
+
+    const toward = new THREE.Vector3().copy(mesh.position).multiplyScalar(-0.018 * cfg.targetSpeed);
+    toward.z = 0.055 * cfg.targetSpeed;
+
+    mesh.userData = {
+      type,
+      vel: toward,
+      spin: (0.6 + Math.random()*1.2) * (Math.random()<0.5 ? -1 : 1),
+      bornAt: performance.now(),
+      wobble: Math.random()*Math.PI*2,
+    };
+
+    scene.add(mesh);
+    targets.push(mesh);
+  }
+
+  function spawnLogic(dt){
+    // keep target count around cfg.maxTargets
+    if (targets.length >= cfg.maxTargets) return;
+
+    // spawn probability based on rate
+    const p = cfg.spawnRate * dt;
+    if (Math.random() < p){
+      const r = Math.random();
+      const type = (r < 0.68) ? "score" : (r < 0.90 ? "danger" : "bonus");
+      makeTarget(type);
+    }
+  }
+
+  function removeTarget(i){
+    const t = targets[i];
+    if (!t) return;
+    scene.remove(t);
+    targets.splice(i,1);
+  }
+
+  // ---------- Particles (simple) ----------
+  function burst(pos, colorHex){
+    if (cfg.fx === "lite") return;
+    const count = 14;
+    for (let i=0;i<count;i++){
+      const g = new THREE.SphereGeometry(0.03, 6, 6);
+      const m = new THREE.MeshBasicMaterial({ color: colorHex });
+      const p = new THREE.Mesh(g, m);
+      p.position.copy(pos);
+      p.userData = {
+        vel: new THREE.Vector3(
+          (Math.random()-0.5)*0.25,
+          (Math.random()-0.5)*0.25,
+          (Math.random()-0.5)*0.18
+        ),
+        life: 0.45 + Math.random()*0.25
+      };
+      scene.add(p);
+      particles.push(p);
+    }
+  }
+
+  function updateParticles(dt){
+    for (let i=particles.length-1;i>=0;i--){
+      const p = particles[i];
+      p.position.addScaledVector(p.userData.vel, dt*60);
+      p.userData.life -= dt;
+      if (p.userData.life <= 0){
+        scene.remove(p);
+        particles.splice(i,1);
+      }
+    }
+  }
+
+  // ---------- Aim & gesture ----------
+  function updateAimFromNdc(ndcX, ndcY){
+    const vector = new THREE.Vector3(ndcX, ndcY, 0.5).unproject(camera);
+    const dir = vector.sub(camera.position).normalize();
+    const distance = 15;
+    const pos = camera.position.clone().add(dir.multiplyScalar(distance));
+
+    // assist (snap & magnet)
+    let best = n
