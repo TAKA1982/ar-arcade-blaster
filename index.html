@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-  <title>AR Blaster: LASER BEAM</title>
+  <title>AR Blaster: 60s CHARGE</title>
 
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
@@ -29,81 +29,111 @@
       display: flex; justify-content: space-between;
     }
     .hud-box {
-      border: 2px solid #00aaff; border-radius: 20px;
+      border: 2px solid #00aaff; border-radius: 6px;
       background: rgba(0, 10, 30, 0.8);
       padding: 10px 25px;
       color: #00aaff; font-size: 24px; font-weight: 900;
       text-shadow: 0 0 10px #00aaff;
       box-shadow: 0 0 15px rgba(0, 170, 255, 0.4);
     }
-    .hud-center {
-      position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%);
-      color: #fff; font-size: 16px; text-align: center; font-weight: bold;
-      text-shadow: 0 0 5px #fff;
-    }
     
     /* チャージバー */
-    #charge-bar-container {
-      width: 200px; height: 10px; background: #333; margin: 10px auto;
-      border-radius: 5px; overflow: hidden; border: 1px solid #555;
+    #charge-container {
+      position: absolute; bottom: 80px; left: 50%; transform: translateX(-50%);
+      width: 300px; height: 20px; background: #111;
+      border-radius: 10px; border: 2px solid #555; overflow: hidden;
     }
-    #charge-bar {
-      width: 0%; height: 100%; background: #ffaa00;
-      box-shadow: 0 0 10px #ffaa00; transition: width 0.1s;
+    #charge-fill {
+      width: 0%; height: 100%; background: linear-gradient(90deg, #ffff00, #00ffff, #ff0055);
+      box-shadow: 0 0 20px #fff; transition: width 0.05s linear;
+    }
+    #charge-text {
+      position: absolute; bottom: 110px; left: 50%; transform: translateX(-50%);
+      color: #fff; font-weight: bold; font-size: 18px; text-shadow: 0 0 5px #fff;
+    }
+    
+    .hud-center {
+      position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%);
+      color: #aaa; font-size: 14px; text-align: center;
     }
 
-    /* オーバーレイ */
-    #overlay {
-      position: fixed; inset: 0; background: rgba(0,0,0,0.9);
+    /* ローディング画面 */
+    #loading-screen {
+      position: fixed; inset: 0; background: #000; z-index: 50;
       display: flex; flex-direction: column; align-items: center; justify-content: center;
-      color: #fff; z-index: 10; backdrop-filter: blur(10px);
+      color: #0ff; font-family: monospace;
+    }
+    .loader-bar-bg {
+      width: 80%; max-width: 400px; height: 4px; background: #333; margin: 20px 0; position: relative;
+    }
+    .loader-bar-fill {
+      position: absolute; left: 0; top: 0; height: 100%; width: 0%; background: #0ff;
+      box-shadow: 0 0 10px #0ff; transition: width 0.3s;
+    }
+    .loader-text { font-size: 14px; color: #888; }
+
+    /* メニュー画面 */
+    #overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.92);
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      color: #fff; z-index: 10; backdrop-filter: blur(8px);
+      transition: opacity 0.5s; display: none;
     }
     h1 {
-      font-size: 48px; color: #ffcc00; font-style: italic; text-transform: uppercase;
-      text-shadow: 0 0 20px #ff6600; margin-bottom: 5px; text-align: center;
+      font-size: 52px; color: #ffcc00; font-style: italic; text-transform: uppercase;
+      text-shadow: 0 0 20px #ff6600; margin: 0; letter-spacing: 5px;
     }
     .subtitle { letter-spacing: 5px; color: #00aaff; margin-bottom: 30px; font-weight: bold; }
 
-    .instruction { display: flex; gap: 40px; margin-bottom: 30px; }
-    .step { text-align: center; opacity: 1; }
-    .step div { font-size: 50px; margin-bottom: 10px; filter: drop-shadow(0 0 10px rgba(255,255,255,0.5)); }
-    .arrow { font-size: 40px; align-self: center; color: #888; }
-
     /* 設定パネル */
     .panel {
-      background: rgba(0,0,0,0.5); border: 1px solid #444;
-      padding: 20px; border-radius: 10px; width: 85%; max-width: 400px; margin-bottom: 20px;
+      background: rgba(0,20,40,0.6); border: 1px solid #0af;
+      padding: 20px; border-radius: 8px; width: 85%; max-width: 400px; margin-bottom: 20px;
     }
+    label { color: #0af; font-size: 12px; font-weight: bold; display: block; margin-bottom: 5px; }
     select {
-      width: 100%; padding: 12px; margin-top: 5px; margin-bottom: 15px;
-      background: #111; color: #fff; border: 1px solid #666; border-radius: 5px; font-size: 16px;
+      width: 100%; padding: 10px; margin-bottom: 15px;
+      background: #001; color: #bef; border: 1px solid #058; font-size: 16px;
     }
 
     button {
-      padding: 15px 60px; font-size: 24px;
-      background: linear-gradient(135deg, #ff6600, #ffcc00);
-      border: none; border-radius: 50px;
-      color: #000; font-weight: 900; cursor: pointer;
-      box-shadow: 0 0 20px rgba(255, 100, 0, 0.6);
-      transition: transform 0.1s;
+      padding: 15px 70px; font-size: 24px;
+      background: linear-gradient(135deg, #00aaff, #00ff88);
+      color: #000; border: none; font-weight: 900; cursor: pointer;
+      box-shadow: 0 0 30px rgba(0, 255, 136, 0.6);
+      clip-path: polygon(20px 0, 100% 0, 100% calc(100% - 20px), calc(100% - 20px) 100%, 0 100%, 0 20px);
+      transition: all 0.1s;
     }
-    button:active { transform: scale(0.95); }
+    button:active { transform: scale(0.95); background: #fff; }
 
-    /* ポップアップスコア */
     .pop-score {
       position: absolute; font-weight: 900;
       text-shadow: 0 0 10px currentColor;
-      animation: blastUp 0.8s forwards cubic-bezier(0.1, 0.9, 0.2, 1.0);
+      animation: blastUp 0.6s forwards ease-out;
       white-space: nowrap; font-family: sans-serif; pointer-events: none;
     }
     @keyframes blastUp {
-      0% { transform: translate(-50%, -50%) scale(0.2); opacity: 0; }
+      0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
       20% { opacity: 1; transform: translate(-50%, -50%) scale(1.5); }
-      100% { opacity: 0; transform: translate(-50%, -150%) scale(2.0); }
+      100% { opacity: 0; transform: translate(-50%, -100%) scale(1.0); }
+    }
+    
+    /* カウントダウン */
+    #countdown {
+      position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+      font-size: 150px; font-weight: 900; color: #fff; 
+      text-shadow: 0 0 50px #0ff; z-index: 20; pointer-events: none;
+      display: none;
     }
   </style>
 </head>
 <body>
+
+  <div id="loading-screen">
+    <h2 style="color:#0ff; text-shadow:0 0 10px #0ff;">SYSTEM BOOT</h2>
+    <div class="loader-bar-bg"><div class="loader-bar-fill" id="loader-fill"></div></div>
+    <div class="loader-text" id="loader-status">INITIALIZING...</div>
+  </div>
 
   <video id="input-video" playsinline muted autoplay></video>
 
@@ -112,46 +142,51 @@
       <div class="hud-box">SCORE: <span id="score">0</span></div>
       <div class="hud-box" id="timer-box">TIME: <span id="time">60</span></div>
     </div>
+    
+    <div id="charge-text">ENERGY LEVEL</div>
+    <div id="charge-container"><div id="charge-fill"></div></div>
+    
     <div class="hud-center">
-      <div id="charge-bar-container"><div id="charge-bar"></div></div>
       <span id="status-text">SYSTEM STANDBY</span>
     </div>
   </div>
 
-  <div id="overlay">
-    <h1>LASER BLASTER</h1>
-    <div class="subtitle">ULTIMATE BEAM EDITION</div>
-    
-    <div class="instruction">
-      <div class="step"><div>✊</div><span style="color:#ffaa00">CHARGE</span></div>
-      <div class="arrow">➡</div>
-      <div class="step"><div>✋</div><span style="color:#00aaff">LASER!</span></div>
-    </div>
+  <div id="countdown">3</div>
 
+  <div id="overlay">
+    <h1>AR BLASTER</h1>
+    <div class="subtitle">ULTIMATE CHARGE</div>
+    
     <div class="panel">
-      <label style="color:#aaa">GAME MODE</label>
+      <label>GAME MODE</label>
       <select id="opt-mode">
         <option value="time60">⏱️ TIME ATTACK (60s)</option>
         <option value="endless">♾️ ENDLESS SURVIVAL</option>
       </select>
-      <label style="color:#aaa">DIFFICULTY</label>
+      <label>DIFFICULTY</label>
       <select id="opt-diff">
-        <option value="easy">🔰 EASY</option>
-        <option value="normal" selected>🎮 NORMAL</option>
-        <option value="hard">🔥 HARD</option>
+        <option value="beginner">🐣 BEGINNER (練習用)</option>
+        <option value="normal" selected>🔥 NORMAL (標準)</option>
+        <option value="hard">💀 HARD (激ムズ)</option>
+        <option value="expert">😈 EXPERT (カオス)</option>
       </select>
+      <div style="font-size:12px; color:#aaa; margin-top:10px; line-height:1.4;">
+        ✊ <strong>グー</strong>でチャージ<br>
+        ✋ <strong>パー</strong>で発射<br>
+        <span style="color:#ff5555;">★MAXチャージでボス一撃必殺！</span>
+      </div>
     </div>
 
-    <button id="start-btn">SUIT UP</button>
+    <button id="start-btn">GAME START</button>
   </div>
 
 <script>
 (function() {
   const $ = id => document.getElementById(id);
 
-  // === 設定 ===
+  // === 設定 (初期値を60秒モードに合わせる) ===
   let CONF = {
-    mode: 'time60',
+    mode: 'time60', // 修正
     maxTargets: 10,
     spawnInterval: 40,
     targetSpeed: 0.2,
@@ -162,44 +197,71 @@
   let crosshairMesh, targets = [], particles = [], lasers = [];
   let gridMesh, stars;
   let hands, cameraUtils;
-  let score = 0, isRunning = false;
+  
+  let gameState = 'loading';
+  let score = 0;
+  // 修正: 初期タイムリミットを60に
   let startTime = 0, timeLimit = 60;
   
-  // 座標管理
   let aimNDC = { x: 0, y: 0 };
   let smoothAimNDC = { x: 0, y: 0 };
-  
-  // 状態管理
   let isCharging = false; 
-  let chargeLevel = 0;    
+  let chargeLevel = 0; 
+  
+  let texNormal, texHeavy, texCross;
   let audioCtx;
   let chargeSoundNode = null;
 
-  // === Audio System ===
+  window.onload = function() {
+    initAudio();
+    initThree();
+    updateLoader(10, "LOADING MODULES...");
+    setTimeout(() => {
+      setupHands().then(() => {
+        updateLoader(100, "SYSTEM READY");
+        setTimeout(() => {
+          $('loading-screen').style.display = 'none';
+          $('overlay').style.display = 'flex';
+          gameState = 'ready';
+        }, 500);
+      }).catch(e => {
+        $('loader-status').textContent = "ERROR: " + e;
+        $('loader-fill').style.background = "red";
+      });
+    }, 500);
+  };
+
+  function updateLoader(percent, text) {
+    $('loader-fill').style.width = percent + '%';
+    $('loader-status').textContent = text;
+  }
+
   function initAudio() {
     audioCtx = new (window.AudioContext || window.webkitAudioContext)();
   }
 
   function startChargeSound() {
     if (!audioCtx || chargeSoundNode) return;
+    if(audioCtx.state === 'suspended') audioCtx.resume();
+    
     const t = audioCtx.currentTime;
     const osc = audioCtx.createOscillator();
     const gain = audioCtx.createGain();
     
     osc.type = 'sawtooth';
-    osc.frequency.setValueAtTime(50, t);
-    osc.frequency.linearRampToValueAtTime(150, t + 2.0);
+    osc.frequency.setValueAtTime(60, t);
+    osc.frequency.linearRampToValueAtTime(400, t + 2.0); 
     
     const lfo = audioCtx.createOscillator();
-    lfo.frequency.value = 15;
+    lfo.frequency.value = 30;
     const lfoGain = audioCtx.createGain();
-    lfoGain.gain.value = 500;
+    lfoGain.gain.value = 100;
     lfo.connect(lfoGain);
     lfoGain.connect(osc.frequency);
     lfo.start(t);
 
     gain.gain.setValueAtTime(0, t);
-    gain.gain.linearRampToValueAtTime(0.1, t + 0.5);
+    gain.gain.linearRampToValueAtTime(0.1, t + 0.2);
 
     osc.connect(gain);
     gain.connect(audioCtx.destination);
@@ -218,46 +280,36 @@
     }
   }
 
-  function playBlastSound() {
+  function playBlastSound(level) {
     if (!audioCtx) return;
     stopChargeSound();
-    
-    const t = audioCtx.currentTime;
-    // 鋭いレーザー音
-    const osc = audioCtx.createOscillator();
-    const gain = audioCtx.createGain();
-    osc.connect(gain);
-    gain.connect(audioCtx.destination);
-    
-    osc.type = 'sawtooth';
-    osc.frequency.setValueAtTime(1500, t);
-    osc.frequency.exponentialRampToValueAtTime(100, t + 0.4);
-    gain.gain.setValueAtTime(0.4, t);
-    gain.gain.exponentialRampToValueAtTime(0.01, t + 0.4);
-    osc.start(t); osc.stop(t + 0.4);
-  }
-
-  function playHitSound() {
-    if (!audioCtx) return;
     const t = audioCtx.currentTime;
     const osc = audioCtx.createOscillator();
     const gain = audioCtx.createGain();
     osc.connect(gain);
     gain.connect(audioCtx.destination);
-    osc.frequency.setValueAtTime(400, t);
-    osc.frequency.exponentialRampToValueAtTime(0.01, t + 0.1);
-    gain.gain.setValueAtTime(0.2, t);
-    gain.gain.exponentialRampToValueAtTime(0.01, t + 0.1);
-    osc.start(t); osc.stop(t + 0.1);
+    
+    if (level >= 100) {
+      osc.type = 'square'; 
+      osc.frequency.setValueAtTime(200, t);
+      osc.frequency.exponentialRampToValueAtTime(50, t + 0.8);
+      gain.gain.setValueAtTime(0.6, t);
+    } else {
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(800, t);
+      osc.frequency.exponentialRampToValueAtTime(100, t + 0.5);
+      gain.gain.setValueAtTime(0.3, t);
+    }
+    gain.gain.exponentialRampToValueAtTime(0.01, t + 0.5);
+    osc.start(t); osc.stop(t + 0.5);
   }
 
-  // === Three.js ===
   function initThree() {
     if (scene) return;
     scene = new THREE.Scene();
-    scene.fog = new THREE.Fog(0x000000, 10, 80);
+    scene.fog = new THREE.Fog(0x000000, 10, 90);
 
-    camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 100);
+    camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.1, 100);
     camera.position.z = 0; camera.position.y = 1;
 
     renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
@@ -265,21 +317,24 @@
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
     document.body.appendChild(renderer.domElement);
 
-    // 照準
+    texNormal = createTargetTexture('#0af', '⚠');
+    texHeavy = createTargetTexture('#f33', 'BOSS');
+    texCross = createTargetTexture('#fa0', '>>');
     const aimTex = createEnergyTexture();
+
     const aimMat = new THREE.SpriteMaterial({ map: aimTex, color: 0xffaa00, transparent: true, blending: THREE.AdditiveBlending });
     crosshairMesh = new THREE.Sprite(aimMat);
     crosshairMesh.scale.set(1.5, 1.5, 1);
     crosshairMesh.renderOrder = 999;
     scene.add(crosshairMesh);
 
-    // 床
-    const gridHelper = new THREE.GridHelper(100, 40, 0xffaa00, 0x221100);
+    const gridHelper = new THREE.GridHelper(100, 40, 0x0088ff, 0x001122);
     gridHelper.position.y = -5;
     scene.add(gridHelper);
     gridMesh = gridHelper;
 
     createStarField();
+    animate();
 
     window.addEventListener('resize', () => {
       camera.aspect = window.innerWidth / window.innerHeight;
@@ -294,25 +349,33 @@
     const cx = s/2, cy = s/2;
     const g = ctx.createRadialGradient(cx, cy, 10, cx, cy, 60);
     g.addColorStop(0, 'rgba(255, 255, 255, 1)');
-    g.addColorStop(0.5, 'rgba(255, 200, 0, 0.8)');
-    g.addColorStop(1, 'rgba(255, 100, 0, 0)');
+    g.addColorStop(0.4, 'rgba(255, 255, 255, 0.8)');
+    g.addColorStop(1, 'rgba(255, 255, 255, 0)');
     ctx.fillStyle = g;
     ctx.beginPath(); ctx.arc(cx, cy, 60, 0, Math.PI*2); ctx.fill();
     return new THREE.CanvasTexture(c);
   }
 
-  function createTargetTexture() {
+  function createTargetTexture(color, text) {
     const s = 128; const c = document.createElement('canvas');
     c.width = s; c.height = s; const ctx = c.getContext('2d');
-    ctx.fillStyle = 'rgba(0, 200, 255, 0.2)'; 
-    ctx.strokeStyle = '#0af'; ctx.lineWidth = 3;
-    ctx.beginPath(); ctx.arc(s/2, s/2, 50, 0, Math.PI*2); ctx.fill(); ctx.stroke();
-    ctx.beginPath(); ctx.arc(s/2, s/2, 30, 0, Math.PI*2); ctx.stroke();
-    ctx.fillStyle = '#0af'; ctx.font = '20px Arial'; ctx.textAlign='center'; ctx.textBaseline='middle';
-    ctx.fillText('TARGET', s/2, s/2);
+    ctx.shadowBlur = 10; ctx.shadowColor = color;
+    ctx.strokeStyle = color; ctx.lineWidth = 4;
+    ctx.beginPath();
+    for (let i = 0; i < 6; i++) {
+      const angle = (Math.PI / 3) * i;
+      const x = s/2 + Math.cos(angle) * 50;
+      const y = s/2 + Math.sin(angle) * 50;
+      if (i===0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.closePath(); ctx.stroke();
+    ctx.fillStyle = color + '44'; ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = color; ctx.font = 'bold 30px Arial';
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(text, s/2, s/2);
     return new THREE.CanvasTexture(c);
   }
-  const targetTex = createTargetTexture();
 
   function createStarField() {
     const geo = new THREE.BufferGeometry(); const pos = [];
@@ -323,155 +386,91 @@
     scene.add(stars);
   }
 
-  // === レーザーエフェクト生成（軽量版） ===
-  function createLaserBeam(targetPos) {
-    // 始点（手元あたり）
+  function createLaserBeam(targetPos, level) {
     const startPos = new THREE.Vector3(0, -2, 2); 
-    // 終点（ターゲットの少し奥）
-    const endPos = targetPos.clone().normalize().multiplyScalar(50);
-    
-    // ジオメトリ生成（2枚の板を十字にする）
+    const endPos = targetPos.clone().normalize().multiplyScalar(80);
     const dist = startPos.distanceTo(endPos);
-    const geometry = new THREE.PlaneGeometry(0.5, dist);
-    geometry.rotateX(-Math.PI / 2); // 寝かせる
-    geometry.translate(0, 0, dist / 2); // 軸を端に合わせる
+    let width = 0.3; let color = 0xffff00; 
+    if (level >= 100) { width = 1.5; color = 0xff0000; } 
+    else if (level > 50) { width = 0.6; color = 0x00ffff; }
 
+    const geometry = new THREE.PlaneGeometry(width, dist);
+    geometry.rotateX(-Math.PI / 2); geometry.translate(0, 0, dist / 2); 
     const material = new THREE.MeshBasicMaterial({ 
-      color: 0x00ffff, 
-      transparent: true, 
-      opacity: 0.8,
-      side: THREE.DoubleSide,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false
+      color: color, transparent: true, opacity: 0.9, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false
     });
-
     const mesh1 = new THREE.Mesh(geometry, material);
     const mesh2 = new THREE.Mesh(geometry, material);
-    mesh2.rotation.z = Math.PI / 2; // 十字にする
-    mesh1.add(mesh2);
-
-    mesh1.position.copy(startPos);
-    mesh1.lookAt(endPos);
-
+    mesh2.rotation.z = Math.PI / 2; mesh1.add(mesh2);
+    mesh1.position.copy(startPos); mesh1.lookAt(endPos);
     scene.add(mesh1);
-    
-    // レーザー管理配列に追加
     lasers.push({ mesh: mesh1, life: 1.0 });
   }
 
-  // === Game Logic ===
-  function startGame() {
-    initAudio(); if(audioCtx.state === 'suspended') audioCtx.resume();
-    initThree();
-    applySettings();
-    score = 0; $('score').textContent = '0';
-    if (!hands) {
-      setupHands().then(() => setRunningState(true)).catch(e => alert(e));
-    } else { setRunningState(true); }
-  }
-
-  function applySettings() {
-    const mode = $('opt-mode').value;
-    const diff = $('opt-diff').value;
-    CONF.mode = mode;
-    if (diff === 'easy') { CONF.maxTargets = 5; CONF.spawnInterval = 60; CONF.targetSpeed = 0.1; }
-    else if (diff === 'normal') { CONF.maxTargets = 10; CONF.spawnInterval = 40; CONF.targetSpeed = 0.2; }
-    else if (diff === 'hard') { CONF.maxTargets = 15; CONF.spawnInterval = 25; CONF.targetSpeed = 0.35; }
-
-    if (mode === 'time60') {
-      $('timer-box').style.display = 'block'; timeLimit = 60;
-    } else {
-      $('timer-box').style.display = 'none';
-    }
-  }
-
-  function setRunningState(state) {
-    isRunning = state;
-    if (state) {
-      $('overlay').style.display = 'none';
-      startTime = performance.now();
-      targets.forEach(t => scene.remove(t)); targets = [];
-      lasers.forEach(l => scene.remove(l.mesh)); lasers = [];
-      animate();
-    } else {
-      stopChargeSound();
-      $('overlay').style.display = 'flex';
-      $('overlay').innerHTML = `
-        <h1>SYSTEM OFFLINE</h1>
-        <h2 style="font-size:40px; color:#ffaa00; margin:10px;">SCORE: ${score}</h2>
-        <button onclick="location.reload()">RE-INITIALIZE</button>
-      `;
-    }
-  }
-
   async function setupHands() {
-    $('start-btn').textContent = "CALIBRATING..."; $('start-btn').disabled = true;
+    updateLoader(30, "LOADING AI MODELS...");
     hands = new Hands({locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}`});
     hands.setOptions({ maxNumHands: 1, modelComplexity: 1, minDetectionConfidence: 0.6, minTrackingConfidence: 0.6 });
     hands.onResults(results => {
       if (results.multiHandLandmarks.length > 0) {
         const lm = results.multiHandLandmarks[0];
-        updateAim(lm); 
-        checkGesture(lm);
-        $('status-text').textContent = isCharging ? "CHARGING..." : "READY TO FIRE";
-        $('status-text').style.color = isCharging ? "#ffaa00" : "#00aaff";
+        updateAim(lm); checkGesture(lm);
+        if (gameState === 'running') $('status-text').textContent = isCharging ? "CHARGING..." : "READY";
       } else {
-        $('status-text').textContent = "NO SIGNAL"; $('status-text').style.color = "#888";
         stopChargeSound();
       }
     });
     const video = $('input-video');
     cameraUtils = new Camera(video, {
-      onFrame: async () => { if(isRunning) await hands.send({image: video}); },
+      onFrame: async () => { await hands.send({image: video}); },
       width: CONF.cameraW, height: CONF.cameraH
     });
+    updateLoader(60, "STARTING CAMERA...");
     await cameraUtils.start();
-    $('start-btn').disabled = false; $('start-btn').textContent = "SUIT UP";
   }
 
   function updateAim(lm) {
     const wrist = lm[0]; const middle = lm[9];
     const x = (1 - (wrist.x + middle.x) / 2) * 2 - 1;
     const y = (1 - (wrist.y + middle.y) / 2) * 2 - 1;
-    
     aimNDC.x = x; aimNDC.y = y;
     smoothAimNDC.x += (aimNDC.x - smoothAimNDC.x) * 0.3;
     smoothAimNDC.y += (aimNDC.y - smoothAimNDC.y) * 0.3;
 
-    let shakeX = 0, shakeY = 0;
-    if (isCharging) {
-      shakeX = (Math.random()-0.5) * 0.1;
-      shakeY = (Math.random()-0.5) * 0.1;
-    }
-
-    const aimVector = new THREE.Vector3((smoothAimNDC.x + shakeX) * 14, (smoothAimNDC.y + shakeY) * 9, -15);
+    let shake = (isCharging ? (chargeLevel/100)*0.1 : 0);
+    const aimVector = new THREE.Vector3((smoothAimNDC.x + (Math.random()-0.5)*shake) * 14, (smoothAimNDC.y + (Math.random()-0.5)*shake) * 9, -15);
     crosshairMesh.position.copy(aimVector);
-    crosshairMesh.material.rotation += isCharging ? 0.2 : 0.02;
+    crosshairMesh.material.rotation += isCharging ? 0.3 : 0.02;
   }
 
   function checkGesture(lm) {
+    if (gameState !== 'running') { stopChargeSound(); isCharging = false; return; }
+
     const handSize = Math.hypot(lm[0].x - lm[9].x, lm[0].y - lm[9].y);
     const tips = [8, 12, 16, 20];
     let totalTipDist = 0;
     tips.forEach(i => totalTipDist += Math.hypot(lm[i].x - lm[0].x, lm[i].y - lm[0].y));
     const ratio = (totalTipDist / 4) / handSize;
-    const chargeBar = $('charge-bar');
-
-    if (ratio < 1.0) { // CHARGE (Fist)
+    const bar = $('charge-fill');
+    
+    if (ratio < 1.0) { // CHARGE
       if (!isCharging) { isCharging = true; startChargeSound(); }
-      chargeLevel = Math.min(100, chargeLevel + 2);
-      chargeBar.style.width = chargeLevel + '%';
-      chargeBar.style.background = `rgb(255, ${150 + chargeLevel}, 0)`;
+      chargeLevel = Math.min(100, chargeLevel + 1.5); 
+      bar.style.width = chargeLevel + '%';
+      if (chargeLevel >= 100) {
+        bar.style.background = '#ff0000'; crosshairMesh.material.color.setHex(0xff0000);
+      } else if (chargeLevel > 50) {
+        bar.style.background = '#00ffff'; crosshairMesh.material.color.setHex(0x00ffff);
+      } else {
+        bar.style.background = '#ffff00'; crosshairMesh.material.color.setHex(0xffff00);
+      }
       const s = 1.5 - (chargeLevel/100) * 1.0; 
       crosshairMesh.scale.set(s, s, 1);
-      crosshairMesh.material.color.setHex(0xffaa00);
-
-    } else if (ratio > 1.3) { // FIRE (Open)
+    } else if (ratio > 1.3) { // FIRE
       if (isCharging) {
-        fireBlast();
-        isCharging = false;
-        chargeLevel = 0;
-        chargeBar.style.width = '0%';
+        if (chargeLevel >= 20) fireBlast(chargeLevel);
+        isCharging = false; chargeLevel = 0;
+        bar.style.width = '0%'; bar.style.background = '#ffff00';
         stopChargeSound();
       }
       crosshairMesh.scale.set(1.5, 1.5, 1);
@@ -479,53 +478,166 @@
     }
   }
 
-  function fireBlast() {
-    playBlastSound();
-    screenShake(1.0);
+  function fireBlast(level) {
+    playBlastSound(level);
+    
+    let power = 1;
+    let isPenetrate = false;
+    
+    if (level >= 100) { 
+      power = 50; 
+      isPenetrate = true; 
+    } else if (level > 50) { 
+      power = 3; 
+    }
 
-    // ★レーザー生成★
     const aimVector = new THREE.Vector3(smoothAimNDC.x * 14, smoothAimNDC.y * 9, -15);
-    createLaserBeam(aimVector);
+    createLaserBeam(aimVector, level);
 
-    // ビーム演出
-    crosshairMesh.scale.set(4.0, 4.0, 1);
-    crosshairMesh.material.color.setHex(0xffffff);
+    const s = 2.0 + (level/100)*3.0;
+    crosshairMesh.scale.set(s, s, 1);
     setTimeout(() => crosshairMesh.scale.set(1.5, 1.5, 1), 100);
+    
+    const recoil = (level/100) * 2.0;
+    screenShake(recoil);
 
-    // Hit Detection
+    let hitCandidates = [];
     for (let i = targets.length - 1; i >= 0; i--) {
       const t = targets[i];
       const targetScreenPos = t.position.clone().project(camera);
       const distOnScreen = Math.hypot(targetScreenPos.x - smoothAimNDC.x, targetScreenPos.y - smoothAimNDC.y);
-
-      if (distOnScreen < 0.2) {
-        const distZ = t.position.z;
-        let points = 100;
-        let label = "HIT! +100";
-        let color = "#00aaff"; 
-        let size = 30;
-
-        if (distZ < -35) { points = 300; label = "SNIPE! +300"; color = "#ffaa00"; size = 40; }
-        else if (distZ > -8) { points = 500; label = "SMASH!! +500"; color = "#ff0055"; size = 50; }
-
-        createExplosion(t.position);
-        showFloatingText(t.position, label, color, size);
-        
-        scene.remove(t); targets.splice(i, 1);
-        score += points; $('score').textContent = score;
-        playHitSound();
+      const hitRadius = 0.2 + (level/100)*0.25;
+      
+      if (distOnScreen < hitRadius) {
+        hitCandidates.push({ index: i, target: t, z: t.position.z });
       }
+    }
+    hitCandidates.sort((a, b) => b.z - a.z);
+
+    for (let h of hitCandidates) {
+      const t = h.target;
+      t.userData.hp -= power;
+      
+      if (t.userData.hp <= 0) {
+        createExplosion(t.position, true);
+        let pts = (t.userData.type==='heavy' ? 500 : 100) * (level>=100 ? 2 : 1);
+        showFloatingText(t.position, `+${pts}`, "#0ff", 30);
+        
+        const idx = targets.indexOf(t);
+        if (idx > -1) { scene.remove(t); targets.splice(idx, 1); score += pts; $('score').textContent = score; }
+      } else {
+        createExplosion(t.position, false);
+        t.position.z -= 5; 
+      }
+      if (!isPenetrate) break; 
     }
   }
 
-  function screenShake(intensity = 0.5) {
+  $('start-btn').addEventListener('click', () => {
+    if (gameState !== 'ready') return;
+    applySettings();
+    $('overlay').style.opacity = 0;
+    setTimeout(() => { $('overlay').style.display = 'none'; }, 500);
+
+    gameState = 'counting';
+    const cd = $('countdown');
+    cd.style.display = 'flex';
+    let count = 3;
+    cd.textContent = count;
+    
+    const timer = setInterval(() => {
+      count--;
+      if (count > 0) {
+        cd.textContent = count;
+      } else if (count === 0) {
+        cd.textContent = "GO!";
+        cd.style.color = "#ff0055";
+      } else {
+        clearInterval(timer);
+        cd.style.display = 'none';
+        startRunning();
+      }
+    }, 1000);
+  });
+
+  function startRunning() {
+    gameState = 'running';
+    score = 0; $('score').textContent = 0;
+    startTime = performance.now();
+    targets.forEach(t => scene.remove(t)); targets = [];
+    lasers.forEach(l => scene.remove(l.mesh)); lasers = [];
+  }
+
+  function applySettings() {
+    const mode = $('opt-mode').value;
+    const diff = $('opt-diff').value;
+    CONF.mode = mode;
+    
+    if (diff === 'beginner') { 
+      CONF.maxTargets = 3; CONF.spawnInterval = 80; CONF.targetSpeed = 0.05; 
+    } else if (diff === 'normal') { 
+      CONF.maxTargets = 8; CONF.spawnInterval = 40; CONF.targetSpeed = 0.2; 
+    } else if (diff === 'hard') { 
+      CONF.maxTargets = 12; CONF.spawnInterval = 25; CONF.targetSpeed = 0.3; 
+    } else if (diff === 'expert') {
+      CONF.maxTargets = 18; CONF.spawnInterval = 15; CONF.targetSpeed = 0.45;
+    }
+
+    if (mode === 'time60') { // 修正: 60秒用処理
+      timeLimit = 60;
+      $('timer-box').style.display = 'block';
+    } else {
+      $('timer-box').style.display = 'none';
+    }
+  }
+
+  function endGame() {
+    gameState = 'result'; stopChargeSound();
+    const ov = $('overlay');
+    ov.style.display = 'flex';
+    ov.style.opacity = 1;
+    ov.innerHTML = `<h1>MISSION OVER</h1><h2 style="font-size:40px; color:#ff3333; margin:10px;">SCORE: ${score}</h2><button onclick="location.reload()" style="background:#fff; color:#000; cursor:pointer; border:none;">REBOOT SYSTEM</button>`;
+  }
+
+  function spawnTarget() {
+    if (targets.length >= CONF.maxTargets) return;
+    const isHeavy = Math.random() < 0.2;
+    const type = isHeavy ? 'heavy' : 'normal';
+    const hp = isHeavy ? 10 : 1; 
+    const tex = isHeavy ? texHeavy : (Math.random()<0.5 ? texNormal : texCross);
+    const size = isHeavy ? 6 : 4;
+    const mat = new THREE.SpriteMaterial({ map: tex, color: 0xffffff });
+    const sprite = new THREE.Sprite(mat);
+    
+    const moveType = Math.floor(Math.random() * 6);
+    let sx, sy, sz;
+    if (moveType === 4) { sx = -80; sy = (Math.random()-0.5)*20; sz = -40; } 
+    else if (moveType === 5) { sx = 80; sy = (Math.random()-0.5)*20; sz = -40; } 
+    else { sx = (Math.random()-0.5)*60; sy = (Math.random()-0.5)*30; sz = -50 - Math.random()*20; }
+
+    sprite.position.set(sx, sy, sz); sprite.scale.set(size, size, 1);
+    sprite.userData = { type: type, hp: hp, moveType: moveType, startTime: performance.now() };
+    scene.add(sprite); targets.push(sprite);
+  }
+
+  function createExplosion(pos, isBig) {
+    const count = isBig ? 15 : 5; const color = isBig ? 0xff3333 : 0xffaa00;
+    for(let i=0; i<count; i++){
+      const mat = new THREE.SpriteMaterial({ color: color });
+      const p = new THREE.Sprite(mat);
+      p.position.copy(pos); p.scale.set(0.8, 0.8, 1);
+      p.userData = { vel: new THREE.Vector3((Math.random()-0.5), (Math.random()-0.5), (Math.random()-0.5)).multiplyScalar(isBig ? 1.0 : 0.5) };
+      scene.add(p); particles.push(p);
+    }
+  }
+
+  function screenShake(intensity) {
     const originalPos = camera.position.clone();
     let shakeFrame = 0;
     function shake() {
-      if (shakeFrame > 15) { camera.position.copy(originalPos); return; }
+      if (shakeFrame > 10) { camera.position.copy(originalPos); return; }
       camera.position.x = originalPos.x + (Math.random() - 0.5) * intensity;
       camera.position.y = originalPos.y + (Math.random() - 0.5) * intensity;
-      intensity *= 0.9;
       shakeFrame++; requestAnimationFrame(shake);
     }
     shake();
@@ -536,88 +648,49 @@
     const x = (vec.x * .5 + .5) * window.innerWidth;
     const y = (-(vec.y * .5) + .5) * window.innerHeight;
     const el = document.createElement('div');
-    el.className = 'pop-score';
-    el.textContent = text;
+    el.className = 'pop-score'; el.textContent = text;
     el.style.left = x + 'px'; el.style.top = y + 'px';
     el.style.color = color; el.style.fontSize = size + 'px';
     document.body.appendChild(el);
-    setTimeout(() => el.remove(), 1000);
-  }
-
-  function spawnTarget() {
-    if (targets.length >= CONF.maxTargets) return;
-    const mat = new THREE.SpriteMaterial({ map: targetTex, color: 0xffffff });
-    const sprite = new THREE.Sprite(mat);
-    sprite.position.set((Math.random()-0.5)*25, (Math.random()-0.5)*15, -50);
-    sprite.scale.set(4, 4, 1);
-    scene.add(sprite);
-    targets.push(sprite);
-  }
-
-  function createExplosion(pos) {
-    for(let i=0; i<12; i++){
-      const mat = new THREE.SpriteMaterial({ color: 0xffaa00 });
-      const p = new THREE.Sprite(mat);
-      p.position.copy(pos); p.scale.set(0.8, 0.8, 1);
-      p.userData = { vel: new THREE.Vector3((Math.random()-0.5), (Math.random()-0.5), (Math.random()-0.5)).multiplyScalar(0.8) };
-      scene.add(p); particles.push(p);
-    }
+    setTimeout(() => el.remove(), 600);
   }
 
   let frameCount = 0;
   function animate() {
-    if (!isRunning) return;
     requestAnimationFrame(animate);
-
+    if(gridMesh) gridMesh.position.z = (gridMesh.position.z + 1.0) % 10;
+    if (gameState !== 'running') return;
     if (CONF.mode === 'time60') {
       const elapsed = (performance.now() - startTime) / 1000;
       const remain = Math.max(0, timeLimit - elapsed);
       $('time').textContent = remain.toFixed(1);
-      if (remain <= 0) { setRunningState(false); return; }
+      if (remain <= 0) { endGame(); return; }
     }
-
-    if(gridMesh) gridMesh.position.z = (gridMesh.position.z + 0.8) % 10;
-
     frameCount++;
     if (frameCount % CONF.spawnInterval === 0) spawnTarget();
+    const now = performance.now();
 
-    // ターゲット更新
     for (let i = targets.length - 1; i >= 0; i--) {
       const t = targets[i];
-      t.position.z += CONF.targetSpeed * (1 + frameCount % 200 * 0.01); 
+      const mt = t.userData.moveType;
+      if (mt === 4) t.position.x += 0.8; 
+      else if (mt === 5) t.position.x -= 0.8;
+      else t.position.z += CONF.targetSpeed * (1 + frameCount*0.0001);
       t.material.rotation -= 0.05;
-      if (t.position.z > 2) { scene.remove(t); targets.splice(i, 1); }
+      if (t.position.z > 2 || Math.abs(t.position.x) > 100) { scene.remove(t); targets.splice(i, 1); }
     }
-
-    // パーティクル更新
     for (let i = particles.length - 1; i >= 0; i--) {
       const p = particles[i];
-      p.position.add(p.userData.vel);
-      p.material.opacity -= 0.04;
-      p.scale.multiplyScalar(0.9);
+      p.position.add(p.userData.vel); p.material.opacity -= 0.05;
       if (p.material.opacity <= 0) { scene.remove(p); particles.splice(i, 1); }
     }
-
-    // ★レーザー更新（一瞬で消えるアニメーション）
     for (let i = lasers.length - 1; i >= 0; i--) {
       const l = lasers[i];
-      l.life -= 0.1; // 寿命を減らす
-      
-      // 細くする
-      l.mesh.scale.x = l.life; 
-      l.mesh.material.opacity = l.life;
-
-      if (l.life <= 0) {
-        scene.remove(l.mesh);
-        l.mesh.geometry.dispose(); // メモリ解放
-        lasers.splice(i, 1);
-      }
+      l.life -= 0.15; l.mesh.scale.x = l.life; l.mesh.material.opacity = l.life;
+      if (l.life <= 0) { scene.remove(l.mesh); lasers.splice(i, 1); }
     }
-
     renderer.render(scene, camera);
   }
-
-  $('start-btn').addEventListener('click', startGame);
 })();
 </script>
 </body>
