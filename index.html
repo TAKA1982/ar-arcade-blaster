@@ -2,681 +2,623 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>AR Arcade Blaster</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>AR Blaster: LASER BEAM</title>
 
-  <!-- Fixed versions -->
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1646424915/hands.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
-  <script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 
   <style>
-    :root{
-      --bg:#000;
-      --fg:rgba(255,255,255,0.95);
-      --muted:rgba(255,255,255,0.70);
-      --card:rgba(10,10,10,0.62);
-      --border:rgba(255,255,255,0.10);
-      --shadow:0 14px 40px rgba(0,0,0,0.55);
-      --accent:#00ff88;
-      --danger:#ff4444;
-      --warn:#ffcc33;
-      --safe-top: env(safe-area-inset-top, 0px);
-      --safe-bottom: env(safe-area-inset-bottom, 0px);
-      --safe-left: env(safe-area-inset-left, 0px);
-      --safe-right: env(safe-area-inset-right, 0px);
+    body {
+      margin: 0; background-color: #000; overflow: hidden;
+      font-family: 'Segoe UI', sans-serif; user-select: none;
     }
-    html,body{
-      margin:0; padding:0;
-      height:100%;
-      background:var(--bg);
-      color:var(--fg);
-      overflow:hidden;
-      touch-action:none;
-      font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    #input-video {
+      position: fixed; top: 0; left: 0; width: 1px; height: 1px; opacity: 0; pointer-events: none;
     }
-    canvas{display:block;}
-    #video-container{
-      position:fixed;
-      width:1px;height:1px;
-      opacity:0;
-      pointer-events:none;
-      transform:scaleX(-1);
-    }
-    #ui{
-      position:fixed; inset:0;
-      pointer-events:none;
-      text-shadow:0 2px 10px rgba(0,0,0,0.65);
-    }
-    #topbar{
-      position:fixed;
-      top:calc(10px + var(--safe-top));
-      left:calc(10px + var(--safe-left));
-      right:calc(10px + var(--safe-right));
-      display:flex;
-      gap:10px;
-      align-items:center;
-      justify-content:space-between;
-    }
-    .pill{
-      background: rgba(0,0,0,0.35);
-      border:1px solid rgba(255,255,255,0.10);
-      box-shadow:var(--shadow);
-      backdrop-filter: blur(10px);
-      border-radius: 14px;
-      padding: 10px 12px;
-      pointer-events:none;
-      display:flex;
-      align-items:center;
-      gap:10px;
-      line-height:1;
-      white-space:nowrap;
-    }
-    .pill .k{font-size:12px;color:var(--muted);font-weight:800;letter-spacing:0.2px;}
-    .pill .v{font-size:14px;font-weight:900;letter-spacing:0.2px;}
-    .dot{
-      width:8px;height:8px;border-radius:50%;
-      background:#999;
-      box-shadow: 0 0 0 3px rgba(255,255,255,0.08);
-    }
-    .dot.ok{background:var(--accent);}
-    .dot.bad{background:var(--danger);}
-    .dot.mid{background:var(--warn);}
+    canvas { display: block; width: 100vw; height: 100vh; }
 
-    #bottombar{
-      position:fixed;
-      left:calc(10px + var(--safe-left));
-      right:calc(10px + var(--safe-right));
-      bottom:calc(10px + var(--safe-bottom));
-      display:flex;
-      justify-content:center;
-      pointer-events:none;
+    /* UIレイヤー */
+    #ui {
+      position: fixed; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; z-index: 5;
     }
-    #hint{
-      max-width:min(640px, calc(100vw - 20px - var(--safe-left) - var(--safe-right)));
-      background: rgba(0,0,0,0.38);
-      border:1px solid rgba(255,255,255,0.10);
-      box-shadow:var(--shadow);
-      backdrop-filter: blur(10px);
-      border-radius: 16px;
-      padding: 10px 12px;
-      font-size: 13px;
-      line-height: 1.35;
-      color: var(--fg);
+    .hud-top {
+      position: absolute; top: 20px; left: 20px; right: 20px;
+      display: flex; justify-content: space-between;
     }
-    #hint .muted{color:var(--muted);font-size:12px;margin-top:4px;}
-
-    #overlay{
-      position:fixed; inset:0;
-      z-index:999;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      padding: calc(16px + var(--safe-top)) calc(16px + var(--safe-right)) calc(16px + var(--safe-bottom)) calc(16px + var(--safe-left));
-      background:
-        radial-gradient(1200px 900px at 50% 30%, rgba(0,255,136,0.11), rgba(0,0,0,0.92));
+    .hud-box {
+      border: 2px solid #00aaff; border-radius: 20px;
+      background: rgba(0, 10, 30, 0.8);
+      padding: 10px 25px;
+      color: #00aaff; font-size: 24px; font-weight: 900;
+      text-shadow: 0 0 10px #00aaff;
+      box-shadow: 0 0 15px rgba(0, 170, 255, 0.4);
     }
-    #card{
-      width:min(720px, 100%);
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 18px;
-      box-shadow: var(--shadow);
-      backdrop-filter: blur(14px);
-      padding: 14px;
-      pointer-events:auto;
+    .hud-center {
+      position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%);
+      color: #fff; font-size: 16px; text-align: center; font-weight: bold;
+      text-shadow: 0 0 5px #fff;
     }
-    #title{
-      margin:0 0 6px 0;
-      font-size: 18px;
-      font-weight: 1000;
-      letter-spacing: 0.3px;
+    
+    /* チャージバー */
+    #charge-bar-container {
+      width: 200px; height: 10px; background: #333; margin: 10px auto;
+      border-radius: 5px; overflow: hidden; border: 1px solid #555;
     }
-    #desc{
-      margin:0 0 10px 0;
-      color: var(--muted);
-      font-size: 13px;
-      line-height: 1.45;
-    }
-    .row{
-      display:flex;
-      gap:10px;
-      flex-wrap:wrap;
-      margin: 10px 0;
-    }
-    .btn{
-      appearance:none;
-      border:0;
-      border-radius: 14px;
-      padding: 12px 14px;
-      font-weight: 1000;
-      font-size: 14px;
-      letter-spacing: 0.2px;
-      cursor:pointer;
-      -webkit-tap-highlight-color: transparent;
-      min-width: 160px;
-      flex:1;
-    }
-    .btn.primary{
-      background: var(--accent);
-      color:#02140c;
-      box-shadow: 0 12px 30px rgba(0,255,136,0.18);
-    }
-    .btn.secondary{
-      background: rgba(255,255,255,0.10);
-      color: var(--fg);
-      border: 1px solid rgba(255,255,255,0.12);
-      box-shadow:none;
-    }
-    .grid{
-      display:grid;
-      grid-template-columns: 1fr 1fr;
-      gap:10px;
-      margin-top:10px;
-    }
-    .panel{
-      background: rgba(0,0,0,0.30);
-      border:1px solid rgba(255,255,255,0.10);
-      border-radius: 16px;
-      padding: 10px;
-    }
-    .panel h3{
-      margin:0 0 6px 0;
-      font-size: 12px;
-      color: var(--muted);
-      font-weight: 1000;
-      letter-spacing: 0.3px;
-      text-transform: uppercase;
-    }
-    .opt{
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:10px;
-      padding: 8px 0;
-      border-top: 1px solid rgba(255,255,255,0.06);
-    }
-    .opt:first-of-type{border-top:0;}
-    .opt label{font-size:13px;color:var(--fg);font-weight:800;}
-    select, input[type="range"]{
-      pointer-events:auto;
-      width: 180px;
-      max-width: 45vw;
-    }
-    #error{
-      display:none;
-      margin-top:10px;
-      padding: 10px 12px;
-      border-radius: 14px;
-      background: rgba(255,68,68,0.10);
-      border: 1px solid rgba(255,68,68,0.25);
-      color: var(--fg);
-      font-size: 13px;
-      line-height: 1.45;
-      white-space: pre-wrap;
+    #charge-bar {
+      width: 0%; height: 100%; background: #ffaa00;
+      box-shadow: 0 0 10px #ffaa00; transition: width 0.1s;
     }
 
-    .vfx{
-      position:absolute;
-      transform: translate(-50%, -50%);
-      font-weight: 1000;
-      pointer-events:none;
-      will-change: transform, opacity;
-      animation: floatUp 0.8s ease-out forwards;
-      text-shadow: 0 10px 25px rgba(0,0,0,0.7);
+    /* オーバーレイ */
+    #overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.9);
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      color: #fff; z-index: 10; backdrop-filter: blur(10px);
     }
-    @keyframes floatUp{
-      0% { opacity: 1; transform: translate(-50%, -50%) translateY(0) scale(1); }
-      100% { opacity: 0; transform: translate(-50%, -50%) translateY(-90px) scale(1.05); }
+    h1 {
+      font-size: 48px; color: #ffcc00; font-style: italic; text-transform: uppercase;
+      text-shadow: 0 0 20px #ff6600; margin-bottom: 5px; text-align: center;
+    }
+    .subtitle { letter-spacing: 5px; color: #00aaff; margin-bottom: 30px; font-weight: bold; }
+
+    .instruction { display: flex; gap: 40px; margin-bottom: 30px; }
+    .step { text-align: center; opacity: 1; }
+    .step div { font-size: 50px; margin-bottom: 10px; filter: drop-shadow(0 0 10px rgba(255,255,255,0.5)); }
+    .arrow { font-size: 40px; align-self: center; color: #888; }
+
+    /* 設定パネル */
+    .panel {
+      background: rgba(0,0,0,0.5); border: 1px solid #444;
+      padding: 20px; border-radius: 10px; width: 85%; max-width: 400px; margin-bottom: 20px;
+    }
+    select {
+      width: 100%; padding: 12px; margin-top: 5px; margin-bottom: 15px;
+      background: #111; color: #fff; border: 1px solid #666; border-radius: 5px; font-size: 16px;
     }
 
-    #tapBadge{
-      position:fixed;
-      right: calc(10px + var(--safe-right));
-      bottom: calc(84px + var(--safe-bottom));
-      background: rgba(0,0,0,0.32);
-      border:1px solid rgba(255,255,255,0.10);
-      border-radius: 14px;
-      padding: 8px 10px;
-      box-shadow: var(--shadow);
-      backdrop-filter: blur(10px);
-      color: var(--muted);
-      font-size: 12px;
-      pointer-events:none;
-      opacity: 0;
-      transform: translateY(8px);
-      transition: opacity 220ms ease, transform 220ms ease;
+    button {
+      padding: 15px 60px; font-size: 24px;
+      background: linear-gradient(135deg, #ff6600, #ffcc00);
+      border: none; border-radius: 50px;
+      color: #000; font-weight: 900; cursor: pointer;
+      box-shadow: 0 0 20px rgba(255, 100, 0, 0.6);
+      transition: transform 0.1s;
     }
-    #tapBadge.show{opacity:1; transform: translateY(0);}
+    button:active { transform: scale(0.95); }
 
-    @media (max-width: 560px){
-      .grid{grid-template-columns: 1fr;}
+    /* ポップアップスコア */
+    .pop-score {
+      position: absolute; font-weight: 900;
+      text-shadow: 0 0 10px currentColor;
+      animation: blastUp 0.8s forwards cubic-bezier(0.1, 0.9, 0.2, 1.0);
+      white-space: nowrap; font-family: sans-serif; pointer-events: none;
+    }
+    @keyframes blastUp {
+      0% { transform: translate(-50%, -50%) scale(0.2); opacity: 0; }
+      20% { opacity: 1; transform: translate(-50%, -50%) scale(1.5); }
+      100% { opacity: 0; transform: translate(-50%, -150%) scale(2.0); }
     }
   </style>
 </head>
 <body>
 
-  <div id="overlay">
-    <div id="card">
-      <h1 id="title">AR Arcade Blaster</h1>
-      <p id="desc">
-        手ジェスチャーでもタップでも遊べる、端末に合わせて自動最適化するアーケードシューター。
-        Androidスマホ/タブレットはChrome推奨。httpsで開いてカメラ許可が必要です。
-      </p>
-
-      <div class="grid">
-        <div class="panel">
-          <h3>Game</h3>
-          <div class="opt">
-            <label for="mode">モード</label>
-            <select id="mode">
-              <option value="timed">60秒チャレンジ</option>
-              <option value="endless">エンドレス</option>
-              <option value="relax">リラックス</option>
-            </select>
-          </div>
-          <div class="opt">
-            <label for="difficulty">難易度</label>
-            <select id="difficulty">
-              <option value="auto" selected>自動（おすすめ）</option>
-              <option value="easy">EASY</option>
-              <option value="normal">NORMAL</option>
-              <option value="hard">HARD</option>
-            </select>
-          </div>
-          <div class="opt">
-            <label for="handed">利き手</label>
-            <select id="handed">
-              <option value="auto" selected>自動</option>
-              <option value="right">右手想定</option>
-              <option value="left">左手想定</option>
-            </select>
-          </div>
-        </div>
-
-        <div class="panel">
-          <h3>Controls</h3>
-          <div class="opt">
-            <label for="tapshoot">タップ発射</label>
-            <select id="tapshoot">
-              <option value="on" selected>ON</option>
-              <option value="off">OFF</option>
-            </select>
-          </div>
-          <div class="opt">
-            <label for="assist">エイム補助</label>
-            <input id="assist" type="range" min="0" max="100" value="55" />
-          </div>
-          <div class="opt">
-            <label for="fx">演出</label>
-            <select id="fx">
-              <option value="full" selected>FULL</option>
-              <option value="lite">LITE</option>
-            </select>
-          </div>
-        </div>
-      </div>
-
-      <div class="row">
-        <button class="btn primary" id="startBtn">開始（カメラ許可）</button>
-        <button class="btn secondary" id="fsBtn">フルスクリーン</button>
-        <button class="btn secondary" id="howBtn">遊び方</button>
-      </div>
-
-      <div id="error"></div>
-    </div>
-  </div>
-
-  <div id="video-container">
-    <video id="video" playsinline muted></video>
-  </div>
+  <video id="input-video" playsinline muted autoplay></video>
 
   <div id="ui">
-    <div id="topbar">
-      <div class="pill">
-        <div class="k">SCORE</div><div class="v" id="score">0</div>
-        <div class="k">MULTI</div><div class="v" id="multi">x1</div>
-      </div>
+    <div class="hud-top">
+      <div class="hud-box">SCORE: <span id="score">0</span></div>
+      <div class="hud-box" id="timer-box">TIME: <span id="time">60</span></div>
+    </div>
+    <div class="hud-center">
+      <div id="charge-bar-container"><div id="charge-bar"></div></div>
+      <span id="status-text">SYSTEM STANDBY</span>
+    </div>
+  </div>
 
-      <div class="pill">
-        <div class="dot bad" id="dot"></div>
-        <div class="k" id="status">開始を押してください</div>
-        <div class="k">FPS</div><div class="v" id="fps">--</div>
-        <div class="k" id="timerKey">TIME</div><div class="v" id="timer">--</div>
-      </div>
+  <div id="overlay">
+    <h1>LASER BLASTER</h1>
+    <div class="subtitle">ULTIMATE BEAM EDITION</div>
+    
+    <div class="instruction">
+      <div class="step"><div>✊</div><span style="color:#ffaa00">CHARGE</span></div>
+      <div class="arrow">➡</div>
+      <div class="step"><div>✋</div><span style="color:#00aaff">LASER!</span></div>
     </div>
 
-    <div id="bottombar">
-      <div id="hint">
-        手をカメラに映すと照準が動きます。親指を曲げると発射。
-        <div class="muted">反応が不安定なら画面タップでも発射できます。横向き推奨。</div>
-      </div>
+    <div class="panel">
+      <label style="color:#aaa">GAME MODE</label>
+      <select id="opt-mode">
+        <option value="time60">⏱️ TIME ATTACK (60s)</option>
+        <option value="endless">♾️ ENDLESS SURVIVAL</option>
+      </select>
+      <label style="color:#aaa">DIFFICULTY</label>
+      <select id="opt-diff">
+        <option value="easy">🔰 EASY</option>
+        <option value="normal" selected>🎮 NORMAL</option>
+        <option value="hard">🔥 HARD</option>
+      </select>
     </div>
 
-    <div id="tapBadge">タップで発射</div>
+    <button id="start-btn">SUIT UP</button>
   </div>
 
 <script>
-(() => {
-  const $ = (id) => document.getElementById(id);
+(function() {
+  const $ = id => document.getElementById(id);
 
-  // ---------- Settings ----------
-  const FIXED_MP_VERSION = "0.4.1646424915";
-
-  // Default tuning (auto will adjust)
-  let cfg = {
-    mode: "timed",
-    difficulty: "auto",
-    handed: "auto",
-    tapShoot: true,
-    assist: 0.55,        // 0..1
-    fx: "full",
-
-    // performance
-    pixelRatioCap: 1.6,
-    aiEveryNFrames: 2,
-
-    // game params (will be overwritten by difficulty/auto)
-    maxTargets: 6,
-    spawnRate: 0.95,     // per second
-    targetSpeed: 1.0,
-    shotCooldownMs: 190,
-    snapRadius: 1.6,
-    hitRadius: 0.75,
-
-    // scoring
-    baseScore: 100,
+  // === 設定 ===
+  let CONF = {
+    mode: 'time60',
+    maxTargets: 10,
+    spawnInterval: 40,
+    targetSpeed: 0.2,
+    cameraW: 1280, cameraH: 720
   };
 
-  // ---------- State ----------
   let scene, camera, renderer;
-  let crosshair, laser;
-  let targets = [];
-  let particles = [];
-  let clock = new THREE.Clock();
+  let crosshairMesh, targets = [], particles = [], lasers = [];
+  let gridMesh, stars;
+  let hands, cameraUtils;
+  let score = 0, isRunning = false;
+  let startTime = 0, timeLimit = 60;
+  
+  // 座標管理
+  let aimNDC = { x: 0, y: 0 };
+  let smoothAimNDC = { x: 0, y: 0 };
+  
+  // 状態管理
+  let isCharging = false; 
+  let chargeLevel = 0;    
+  let audioCtx;
+  let chargeSoundNode = null;
 
-  let hands = null;
-  let cam = null;
-  let frameCount = 0;
-
-  let audioCtx = null;
-
-  let running = false;
-  let loaded = false;
-
-  let score = 0;
-  let multi = 1;
-  let combo = 0;
-  let lastHitAt = 0;
-
-  let lastShootAt = 0;
-  let thumbWasUp = true;
-  let lastAimPos = null;
-
-  let modeEndAt = 0;
-
-  // fps tracking
-  let fps = 0;
-  let fpsSmoothing = 0.12;
-  let lastFpsUpdate = performance.now();
-
-  // ---------- UI helpers ----------
-  function setStatus(kind, text){
-    $("status").textContent = text;
-    const dot = $("dot");
-    dot.classList.remove("ok","bad","mid");
-    dot.classList.add(kind);
+  // === Audio System ===
+  function initAudio() {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
   }
 
-  function showError(msg){
-    const e = $("error");
-    e.style.display = "block";
-    e.textContent = msg;
-  }
-  function clearError(){
-    const e = $("error");
-    e.style.display = "none";
-    e.textContent = "";
-  }
-
-  function vfxText(text, color, x, y, size){
-    if (cfg.fx === "lite") return;
-    const d = document.createElement("div");
-    d.className = "vfx";
-    d.style.left = x + "px";
-    d.style.top = y + "px";
-    d.style.color = color;
-    d.style.fontSize = (size || 36) + "px";
-    d.textContent = text;
-    $("ui").appendChild(d);
-    setTimeout(() => d.remove(), 800);
-  }
-
-  function badgeTap(){
-    if (!cfg.tapShoot) return;
-    const b = $("tapBadge");
-    b.classList.add("show");
-    setTimeout(() => b.classList.remove("show"), 1500);
-  }
-
-  function vibrate(p){
-    try{ if(navigator.vibrate) navigator.vibrate(p); }catch(_){}
-  }
-
-  // ---------- Audio ----------
-  function ensureAudio(){
-    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  }
-  async function resumeAudio(){
-    ensureAudio();
-    if (audioCtx && audioCtx.state === "suspended"){
-      try{ await audioCtx.resume(); }catch(_){}
-    }
-  }
-  function beep(freq, type, dur, gainValue){
-    if (!audioCtx || audioCtx.state !== "running") return;
+  function startChargeSound() {
+    if (!audioCtx || chargeSoundNode) return;
+    const t = audioCtx.currentTime;
     const osc = audioCtx.createOscillator();
     const gain = audioCtx.createGain();
-    osc.type = type || "square";
-    osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(10, audioCtx.currentTime + dur);
-    gain.gain.setValueAtTime(gainValue ?? 0.12, audioCtx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + dur);
+    
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(50, t);
+    osc.frequency.linearRampToValueAtTime(150, t + 2.0);
+    
+    const lfo = audioCtx.createOscillator();
+    lfo.frequency.value = 15;
+    const lfoGain = audioCtx.createGain();
+    lfoGain.gain.value = 500;
+    lfo.connect(lfoGain);
+    lfoGain.connect(osc.frequency);
+    lfo.start(t);
+
+    gain.gain.setValueAtTime(0, t);
+    gain.gain.linearRampToValueAtTime(0.1, t + 0.5);
+
     osc.connect(gain);
     gain.connect(audioCtx.destination);
-    osc.start();
-    osc.stop(audioCtx.currentTime + dur);
+    osc.start(t);
+
+    chargeSoundNode = { osc, gain, lfo };
   }
 
-  // ---------- Performance auto-tuning ----------
-  function applyDifficulty(){
-    const d = cfg.difficulty;
-    if (d === "easy"){
-      cfg.maxTargets = 5;
-      cfg.spawnRate = 0.75;
-      cfg.targetSpeed = 0.85;
-      cfg.shotCooldownMs = 160;
-      cfg.hitRadius = 0.82;
-      cfg.snapRadius = 1.8;
-    } else if (d === "normal"){
-      cfg.maxTargets = 7;
-      cfg.spawnRate = 1.00;
-      cfg.targetSpeed = 1.00;
-      cfg.shotCooldownMs = 190;
-      cfg.hitRadius = 0.75;
-      cfg.snapRadius = 1.6;
-    } else if (d === "hard"){
-      cfg.maxTargets = 9;
-      cfg.spawnRate = 1.25;
-      cfg.targetSpeed = 1.20;
-      cfg.shotCooldownMs = 210;
-      cfg.hitRadius = 0.68;
-      cfg.snapRadius = 1.45;
+  function stopChargeSound() {
+    if (chargeSoundNode) {
+      const t = audioCtx.currentTime;
+      chargeSoundNode.gain.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
+      chargeSoundNode.osc.stop(t + 0.1);
+      chargeSoundNode.lfo.stop(t + 0.1);
+      chargeSoundNode = null;
     }
   }
 
-  function autoTuneFromFps(){
-    // Called periodically while running
-    // Keep it stable: only small adjustments.
-    if (cfg.difficulty !== "auto") return;
-
-    // Target fps ~ 50+ on Android, but accept 35 on low-end.
-    if (fps < 32){
-      cfg.aiEveryNFrames = Math.min(4, cfg.aiEveryNFrames + 1);
-      cfg.pixelRatioCap = Math.max(1.0, cfg.pixelRatioCap - 0.15);
-      cfg.maxTargets = Math.max(4, cfg.maxTargets - 1);
-      cfg.spawnRate = Math.max(0.65, cfg.spawnRate - 0.08);
-    } else if (fps > 52){
-      cfg.aiEveryNFrames = Math.max(1, cfg.aiEveryNFrames - 1);
-      cfg.pixelRatioCap = Math.min(1.8, cfg.pixelRatioCap + 0.10);
-      cfg.maxTargets = Math.min(10, cfg.maxTargets + 1);
-      cfg.spawnRate = Math.min(1.35, cfg.spawnRate + 0.06);
-    } else {
-      // keep
-    }
-    // renderer settings update
-    if (renderer){
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, cfg.pixelRatioCap));
-    }
+  function playBlastSound() {
+    if (!audioCtx) return;
+    stopChargeSound();
+    
+    const t = audioCtx.currentTime;
+    // 鋭いレーザー音
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(1500, t);
+    osc.frequency.exponentialRampToValueAtTime(100, t + 0.4);
+    gain.gain.setValueAtTime(0.4, t);
+    gain.gain.exponentialRampToValueAtTime(0.01, t + 0.4);
+    osc.start(t); osc.stop(t + 0.4);
   }
 
-  // ---------- Three init ----------
-  function initThree(){
+  function playHitSound() {
+    if (!audioCtx) return;
+    const t = audioCtx.currentTime;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.frequency.setValueAtTime(400, t);
+    osc.frequency.exponentialRampToValueAtTime(0.01, t + 0.1);
+    gain.gain.setValueAtTime(0.2, t);
+    gain.gain.exponentialRampToValueAtTime(0.01, t + 0.1);
+    osc.start(t); osc.stop(t + 0.1);
+  }
+
+  // === Three.js ===
+  function initThree() {
+    if (scene) return;
     scene = new THREE.Scene();
-    camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    scene.fog = new THREE.Fog(0x000000, 10, 80);
 
-    renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: "high-performance" });
+    camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 100);
+    camera.position.z = 0; camera.position.y = 1;
+
+    renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
     renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, cfg.pixelRatioCap));
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
     document.body.appendChild(renderer.domElement);
 
-    const light = new THREE.HemisphereLight(0xffffff, 0x444444, 1.5);
-    scene.add(light);
+    // 照準
+    const aimTex = createEnergyTexture();
+    const aimMat = new THREE.SpriteMaterial({ map: aimTex, color: 0xffaa00, transparent: true, blending: THREE.AdditiveBlending });
+    crosshairMesh = new THREE.Sprite(aimMat);
+    crosshairMesh.scale.set(1.5, 1.5, 1);
+    crosshairMesh.renderOrder = 999;
+    scene.add(crosshairMesh);
 
-    // Laser line
-    const laserGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0,0,0), new THREE.Vector3(0,0,-10)]);
-    const laserMat = new THREE.LineBasicMaterial({ color: 0x00ff88, transparent: true, opacity: 0.55 });
-    laser = new THREE.Line(laserGeo, laserMat);
-    scene.add(laser);
+    // 床
+    const gridHelper = new THREE.GridHelper(100, 40, 0xffaa00, 0x221100);
+    gridHelper.position.y = -5;
+    scene.add(gridHelper);
+    gridMesh = gridHelper;
 
-    // Crosshair
-    const crossGeo = new THREE.RingGeometry(0.055, 0.08, 40);
-    const crossMat = new THREE.MeshBasicMaterial({ color: 0x00ff88, side: THREE.DoubleSide });
-    crosshair = new THREE.Mesh(crossGeo, crossMat);
-    scene.add(crosshair);
+    createStarField();
 
-    camera.position.z = 0;
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
   }
 
-  function onResize(){
-    if (!camera || !renderer) return;
-    camera.aspect = window.innerWidth / window.innerHeight;
-    camera.updateProjectionMatrix();
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, cfg.pixelRatioCap));
+  function createEnergyTexture() {
+    const s = 128; const c = document.createElement('canvas');
+    c.width = s; c.height = s; const ctx = c.getContext('2d');
+    const cx = s/2, cy = s/2;
+    const g = ctx.createRadialGradient(cx, cy, 10, cx, cy, 60);
+    g.addColorStop(0, 'rgba(255, 255, 255, 1)');
+    g.addColorStop(0.5, 'rgba(255, 200, 0, 0.8)');
+    g.addColorStop(1, 'rgba(255, 100, 0, 0)');
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(cx, cy, 60, 0, Math.PI*2); ctx.fill();
+    return new THREE.CanvasTexture(c);
   }
-  window.addEventListener("resize", onResize);
-  window.addEventListener("orientationchange", () => setTimeout(onResize, 250));
 
-  // ---------- Targets ----------
-  function makeTarget(type){
-    // type: "score" | "danger" | "bonus"
-    // Score: +, Danger: -, Bonus: time or multi
-    let geo, mat, mesh;
+  function createTargetTexture() {
+    const s = 128; const c = document.createElement('canvas');
+    c.width = s; c.height = s; const ctx = c.getContext('2d');
+    ctx.fillStyle = 'rgba(0, 200, 255, 0.2)'; 
+    ctx.strokeStyle = '#0af'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(s/2, s/2, 50, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.arc(s/2, s/2, 30, 0, Math.PI*2); ctx.stroke();
+    ctx.fillStyle = '#0af'; ctx.font = '20px Arial'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText('TARGET', s/2, s/2);
+    return new THREE.CanvasTexture(c);
+  }
+  const targetTex = createTargetTexture();
 
-    if (type === "score"){
-      geo = new THREE.IcosahedronGeometry(0.40, 0);
-      mat = new THREE.MeshPhongMaterial({ color: 0x33aaff, emissive: 0x081020, shininess: 80 });
-    } else if (type === "danger"){
-      geo = new THREE.TorusKnotGeometry(0.28, 0.10, 80, 10);
-      mat = new THREE.MeshPhongMaterial({ color: 0xff4444, emissive: 0x240000, shininess: 40 });
+  function createStarField() {
+    const geo = new THREE.BufferGeometry(); const pos = [];
+    for(let i=0; i<600; i++) pos.push((Math.random()-0.5)*100, (Math.random()-0.5)*60, -Math.random()*80);
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    const mat = new THREE.PointsMaterial({ color: 0xffffff, size: 0.2, transparent: true });
+    stars = new THREE.Points(geo, mat);
+    scene.add(stars);
+  }
+
+  // === レーザーエフェクト生成（軽量版） ===
+  function createLaserBeam(targetPos) {
+    // 始点（手元あたり）
+    const startPos = new THREE.Vector3(0, -2, 2); 
+    // 終点（ターゲットの少し奥）
+    const endPos = targetPos.clone().normalize().multiplyScalar(50);
+    
+    // ジオメトリ生成（2枚の板を十字にする）
+    const dist = startPos.distanceTo(endPos);
+    const geometry = new THREE.PlaneGeometry(0.5, dist);
+    geometry.rotateX(-Math.PI / 2); // 寝かせる
+    geometry.translate(0, 0, dist / 2); // 軸を端に合わせる
+
+    const material = new THREE.MeshBasicMaterial({ 
+      color: 0x00ffff, 
+      transparent: true, 
+      opacity: 0.8,
+      side: THREE.DoubleSide,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false
+    });
+
+    const mesh1 = new THREE.Mesh(geometry, material);
+    const mesh2 = new THREE.Mesh(geometry, material);
+    mesh2.rotation.z = Math.PI / 2; // 十字にする
+    mesh1.add(mesh2);
+
+    mesh1.position.copy(startPos);
+    mesh1.lookAt(endPos);
+
+    scene.add(mesh1);
+    
+    // レーザー管理配列に追加
+    lasers.push({ mesh: mesh1, life: 1.0 });
+  }
+
+  // === Game Logic ===
+  function startGame() {
+    initAudio(); if(audioCtx.state === 'suspended') audioCtx.resume();
+    initThree();
+    applySettings();
+    score = 0; $('score').textContent = '0';
+    if (!hands) {
+      setupHands().then(() => setRunningState(true)).catch(e => alert(e));
+    } else { setRunningState(true); }
+  }
+
+  function applySettings() {
+    const mode = $('opt-mode').value;
+    const diff = $('opt-diff').value;
+    CONF.mode = mode;
+    if (diff === 'easy') { CONF.maxTargets = 5; CONF.spawnInterval = 60; CONF.targetSpeed = 0.1; }
+    else if (diff === 'normal') { CONF.maxTargets = 10; CONF.spawnInterval = 40; CONF.targetSpeed = 0.2; }
+    else if (diff === 'hard') { CONF.maxTargets = 15; CONF.spawnInterval = 25; CONF.targetSpeed = 0.35; }
+
+    if (mode === 'time60') {
+      $('timer-box').style.display = 'block'; timeLimit = 60;
     } else {
-      geo = new THREE.OctahedronGeometry(0.45, 0);
-      mat = new THREE.MeshPhongMaterial({ color: 0xffcc33, emissive: 0x2a2000, shininess: 100 });
-    }
-
-    mesh = new THREE.Mesh(geo, mat);
-
-    // spawn on a ring around center
-    const angle = Math.random() * Math.PI * 2;
-    const dist = 10.5 + Math.random() * 2.0;
-    mesh.position.set(Math.cos(angle)*dist, Math.sin(angle)*dist, -16 - Math.random()*8);
-
-    const toward = new THREE.Vector3().copy(mesh.position).multiplyScalar(-0.018 * cfg.targetSpeed);
-    toward.z = 0.055 * cfg.targetSpeed;
-
-    mesh.userData = {
-      type,
-      vel: toward,
-      spin: (0.6 + Math.random()*1.2) * (Math.random()<0.5 ? -1 : 1),
-      bornAt: performance.now(),
-      wobble: Math.random()*Math.PI*2,
-    };
-
-    scene.add(mesh);
-    targets.push(mesh);
-  }
-
-  function spawnLogic(dt){
-    // keep target count around cfg.maxTargets
-    if (targets.length >= cfg.maxTargets) return;
-
-    // spawn probability based on rate
-    const p = cfg.spawnRate * dt;
-    if (Math.random() < p){
-      const r = Math.random();
-      const type = (r < 0.68) ? "score" : (r < 0.90 ? "danger" : "bonus");
-      makeTarget(type);
+      $('timer-box').style.display = 'none';
     }
   }
 
-  function removeTarget(i){
-    const t = targets[i];
-    if (!t) return;
-    scene.remove(t);
-    targets.splice(i,1);
-  }
-
-  // ---------- Particles (simple) ----------
-  function burst(pos, colorHex){
-    if (cfg.fx === "lite") return;
-    const count = 14;
-    for (let i=0;i<count;i++){
-      const g = new THREE.SphereGeometry(0.03, 6, 6);
-      const m = new THREE.MeshBasicMaterial({ color: colorHex });
-      const p = new THREE.Mesh(g, m);
-      p.position.copy(pos);
-      p.userData = {
-        vel: new THREE.Vector3(
-          (Math.random()-0.5)*0.25,
-          (Math.random()-0.5)*0.25,
-          (Math.random()-0.5)*0.18
-        ),
-        life: 0.45 + Math.random()*0.25
-      };
-      scene.add(p);
-      particles.push(p);
+  function setRunningState(state) {
+    isRunning = state;
+    if (state) {
+      $('overlay').style.display = 'none';
+      startTime = performance.now();
+      targets.forEach(t => scene.remove(t)); targets = [];
+      lasers.forEach(l => scene.remove(l.mesh)); lasers = [];
+      animate();
+    } else {
+      stopChargeSound();
+      $('overlay').style.display = 'flex';
+      $('overlay').innerHTML = `
+        <h1>SYSTEM OFFLINE</h1>
+        <h2 style="font-size:40px; color:#ffaa00; margin:10px;">SCORE: ${score}</h2>
+        <button onclick="location.reload()">RE-INITIALIZE</button>
+      `;
     }
   }
 
-  function updateParticles(dt){
-    for (let i=particles.length-1;i>=0;i--){
-      const p = particles[i];
-      p.position.addScaledVector(p.userData.vel, dt*60);
-      p.userData.life -= dt;
-      if (p.userData.life <= 0){
-        scene.remove(p);
-        particles.splice(i,1);
+  async function setupHands() {
+    $('start-btn').textContent = "CALIBRATING..."; $('start-btn').disabled = true;
+    hands = new Hands({locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}`});
+    hands.setOptions({ maxNumHands: 1, modelComplexity: 1, minDetectionConfidence: 0.6, minTrackingConfidence: 0.6 });
+    hands.onResults(results => {
+      if (results.multiHandLandmarks.length > 0) {
+        const lm = results.multiHandLandmarks[0];
+        updateAim(lm); 
+        checkGesture(lm);
+        $('status-text').textContent = isCharging ? "CHARGING..." : "READY TO FIRE";
+        $('status-text').style.color = isCharging ? "#ffaa00" : "#00aaff";
+      } else {
+        $('status-text').textContent = "NO SIGNAL"; $('status-text').style.color = "#888";
+        stopChargeSound();
+      }
+    });
+    const video = $('input-video');
+    cameraUtils = new Camera(video, {
+      onFrame: async () => { if(isRunning) await hands.send({image: video}); },
+      width: CONF.cameraW, height: CONF.cameraH
+    });
+    await cameraUtils.start();
+    $('start-btn').disabled = false; $('start-btn').textContent = "SUIT UP";
+  }
+
+  function updateAim(lm) {
+    const wrist = lm[0]; const middle = lm[9];
+    const x = (1 - (wrist.x + middle.x) / 2) * 2 - 1;
+    const y = (1 - (wrist.y + middle.y) / 2) * 2 - 1;
+    
+    aimNDC.x = x; aimNDC.y = y;
+    smoothAimNDC.x += (aimNDC.x - smoothAimNDC.x) * 0.3;
+    smoothAimNDC.y += (aimNDC.y - smoothAimNDC.y) * 0.3;
+
+    let shakeX = 0, shakeY = 0;
+    if (isCharging) {
+      shakeX = (Math.random()-0.5) * 0.1;
+      shakeY = (Math.random()-0.5) * 0.1;
+    }
+
+    const aimVector = new THREE.Vector3((smoothAimNDC.x + shakeX) * 14, (smoothAimNDC.y + shakeY) * 9, -15);
+    crosshairMesh.position.copy(aimVector);
+    crosshairMesh.material.rotation += isCharging ? 0.2 : 0.02;
+  }
+
+  function checkGesture(lm) {
+    const handSize = Math.hypot(lm[0].x - lm[9].x, lm[0].y - lm[9].y);
+    const tips = [8, 12, 16, 20];
+    let totalTipDist = 0;
+    tips.forEach(i => totalTipDist += Math.hypot(lm[i].x - lm[0].x, lm[i].y - lm[0].y));
+    const ratio = (totalTipDist / 4) / handSize;
+    const chargeBar = $('charge-bar');
+
+    if (ratio < 1.0) { // CHARGE (Fist)
+      if (!isCharging) { isCharging = true; startChargeSound(); }
+      chargeLevel = Math.min(100, chargeLevel + 2);
+      chargeBar.style.width = chargeLevel + '%';
+      chargeBar.style.background = `rgb(255, ${150 + chargeLevel}, 0)`;
+      const s = 1.5 - (chargeLevel/100) * 1.0; 
+      crosshairMesh.scale.set(s, s, 1);
+      crosshairMesh.material.color.setHex(0xffaa00);
+
+    } else if (ratio > 1.3) { // FIRE (Open)
+      if (isCharging) {
+        fireBlast();
+        isCharging = false;
+        chargeLevel = 0;
+        chargeBar.style.width = '0%';
+        stopChargeSound();
+      }
+      crosshairMesh.scale.set(1.5, 1.5, 1);
+      crosshairMesh.material.color.setHex(0x00aaff);
+    }
+  }
+
+  function fireBlast() {
+    playBlastSound();
+    screenShake(1.0);
+
+    // ★レーザー生成★
+    const aimVector = new THREE.Vector3(smoothAimNDC.x * 14, smoothAimNDC.y * 9, -15);
+    createLaserBeam(aimVector);
+
+    // ビーム演出
+    crosshairMesh.scale.set(4.0, 4.0, 1);
+    crosshairMesh.material.color.setHex(0xffffff);
+    setTimeout(() => crosshairMesh.scale.set(1.5, 1.5, 1), 100);
+
+    // Hit Detection
+    for (let i = targets.length - 1; i >= 0; i--) {
+      const t = targets[i];
+      const targetScreenPos = t.position.clone().project(camera);
+      const distOnScreen = Math.hypot(targetScreenPos.x - smoothAimNDC.x, targetScreenPos.y - smoothAimNDC.y);
+
+      if (distOnScreen < 0.2) {
+        const distZ = t.position.z;
+        let points = 100;
+        let label = "HIT! +100";
+        let color = "#00aaff"; 
+        let size = 30;
+
+        if (distZ < -35) { points = 300; label = "SNIPE! +300"; color = "#ffaa00"; size = 40; }
+        else if (distZ > -8) { points = 500; label = "SMASH!! +500"; color = "#ff0055"; size = 50; }
+
+        createExplosion(t.position);
+        showFloatingText(t.position, label, color, size);
+        
+        scene.remove(t); targets.splice(i, 1);
+        score += points; $('score').textContent = score;
+        playHitSound();
       }
     }
   }
 
-  // ---------- Aim & gesture ----------
-  function updateAimFromNdc(ndcX, ndcY){
-    const vector = new THREE.Vector3(ndcX, ndcY, 0.5).unproject(camera);
-    const dir = vector.sub(camera.position).normalize();
-    const distance = 15;
-    const pos = camera.position.clone().add(dir.multiplyScalar(distance));
+  function screenShake(intensity = 0.5) {
+    const originalPos = camera.position.clone();
+    let shakeFrame = 0;
+    function shake() {
+      if (shakeFrame > 15) { camera.position.copy(originalPos); return; }
+      camera.position.x = originalPos.x + (Math.random() - 0.5) * intensity;
+      camera.position.y = originalPos.y + (Math.random() - 0.5) * intensity;
+      intensity *= 0.9;
+      shakeFrame++; requestAnimationFrame(shake);
+    }
+    shake();
+  }
 
-    // assist (snap & magnet)
-    let best = n
+  function showFloatingText(pos, text, color, size) {
+    const vec = pos.clone(); vec.project(camera);
+    const x = (vec.x * .5 + .5) * window.innerWidth;
+    const y = (-(vec.y * .5) + .5) * window.innerHeight;
+    const el = document.createElement('div');
+    el.className = 'pop-score';
+    el.textContent = text;
+    el.style.left = x + 'px'; el.style.top = y + 'px';
+    el.style.color = color; el.style.fontSize = size + 'px';
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 1000);
+  }
+
+  function spawnTarget() {
+    if (targets.length >= CONF.maxTargets) return;
+    const mat = new THREE.SpriteMaterial({ map: targetTex, color: 0xffffff });
+    const sprite = new THREE.Sprite(mat);
+    sprite.position.set((Math.random()-0.5)*25, (Math.random()-0.5)*15, -50);
+    sprite.scale.set(4, 4, 1);
+    scene.add(sprite);
+    targets.push(sprite);
+  }
+
+  function createExplosion(pos) {
+    for(let i=0; i<12; i++){
+      const mat = new THREE.SpriteMaterial({ color: 0xffaa00 });
+      const p = new THREE.Sprite(mat);
+      p.position.copy(pos); p.scale.set(0.8, 0.8, 1);
+      p.userData = { vel: new THREE.Vector3((Math.random()-0.5), (Math.random()-0.5), (Math.random()-0.5)).multiplyScalar(0.8) };
+      scene.add(p); particles.push(p);
+    }
+  }
+
+  let frameCount = 0;
+  function animate() {
+    if (!isRunning) return;
+    requestAnimationFrame(animate);
+
+    if (CONF.mode === 'time60') {
+      const elapsed = (performance.now() - startTime) / 1000;
+      const remain = Math.max(0, timeLimit - elapsed);
+      $('time').textContent = remain.toFixed(1);
+      if (remain <= 0) { setRunningState(false); return; }
+    }
+
+    if(gridMesh) gridMesh.position.z = (gridMesh.position.z + 0.8) % 10;
+
+    frameCount++;
+    if (frameCount % CONF.spawnInterval === 0) spawnTarget();
+
+    // ターゲット更新
+    for (let i = targets.length - 1; i >= 0; i--) {
+      const t = targets[i];
+      t.position.z += CONF.targetSpeed * (1 + frameCount % 200 * 0.01); 
+      t.material.rotation -= 0.05;
+      if (t.position.z > 2) { scene.remove(t); targets.splice(i, 1); }
+    }
+
+    // パーティクル更新
+    for (let i = particles.length - 1; i >= 0; i--) {
+      const p = particles[i];
+      p.position.add(p.userData.vel);
+      p.material.opacity -= 0.04;
+      p.scale.multiplyScalar(0.9);
+      if (p.material.opacity <= 0) { scene.remove(p); particles.splice(i, 1); }
+    }
+
+    // ★レーザー更新（一瞬で消えるアニメーション）
+    for (let i = lasers.length - 1; i >= 0; i--) {
+      const l = lasers[i];
+      l.life -= 0.1; // 寿命を減らす
+      
+      // 細くする
+      l.mesh.scale.x = l.life; 
+      l.mesh.material.opacity = l.life;
+
+      if (l.life <= 0) {
+        scene.remove(l.mesh);
+        l.mesh.geometry.dispose(); // メモリ解放
+        lasers.splice(i, 1);
+      }
+    }
+
+    renderer.render(scene, camera);
+  }
+
+  $('start-btn').addEventListener('click', startGame);
+})();
+</script>
+</body>
+</html>
